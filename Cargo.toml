@@ -1,0 +1,17 @@
+[package]
+name = "pulsar-smith"
+version = "0.1.0"
+authors = ["Yang Yang <yyang@streamnative.io>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+futures = "0.3"
+pulsar = "1.0"
+tokio = "0.2"
+env_logger = "0.7"
+log = "0.4"
+toml = "0.5"
+clap = "3.0.0-beta.2"
+async-trait = "0.1.42"
