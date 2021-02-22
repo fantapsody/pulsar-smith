@@ -1,28 +1,30 @@
 use std::rc::Rc;
 use pulsar::{Pulsar, TokioExecutor, Authentication};
-use crate::opts::PulsarOpts;
 use std::error::Error;
+use crate::config::PulsarConfig;
 
 pub struct PulsarContext {
-    opts: PulsarOpts,
+    config: PulsarConfig,
 
     client: Option<Rc<Pulsar<TokioExecutor>>>,
 }
 
-impl PulsarContext {
-    pub fn create(opts: PulsarOpts) -> PulsarContext {
+impl From<PulsarConfig> for PulsarContext {
+    fn from(cfg: PulsarConfig) -> Self {
         PulsarContext {
-            opts,
+            config: cfg,
             client: None,
         }
     }
+}
 
+impl PulsarContext {
     pub async fn client(&mut self) -> Result<Rc<Pulsar<TokioExecutor>>, Box<dyn Error>> {
         if self.client.is_none() {
-            let mut builder = Pulsar::builder(self.opts.url.clone(), TokioExecutor);
-            if let Some(auth_data) = self.opts.auth_params.as_ref() {
+            let mut builder = Pulsar::builder(self.config.url.clone(), TokioExecutor);
+            if let Some(auth_data) = self.config.auth_params.as_ref() {
                 builder = builder.with_auth(Authentication {
-                    name: self.opts.auth_name.as_ref().unwrap_or(&String::from("token")).clone(),
+                    name: self.config.auth_name.as_ref().unwrap_or(&String::from("token")).clone(),
                     data: auth_data.clone().into_bytes(),
                 });
             }

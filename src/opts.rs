@@ -1,16 +1,19 @@
 use clap::Clap;
-use crate::context::PulsarContext;
 use crate::cmd::produce::ProduceOpts;
 use crate::cmd::consume::ConsumeOpts;
+use crate::config::PulsarConfig;
 
 #[derive(Clap, Debug, Clone)]
 #[clap(version = "1.0", author = "Yang Yang <yyang@streamnative.io>")]
 pub struct PulsarOpts {
-    #[clap(long, default_value = "pulsar://localhost:6650")]
-    pub url: String,
+    #[clap(long)]
+    pub context: Option<String>,
 
-    #[clap(long, default_value = "http://localhost:8080")]
-    pub admin_service_url: String,
+    #[clap(long)]
+    pub url: Option<String>,
+
+    #[clap(long)]
+    pub admin_service_url: Option<String>,
 
     #[clap(long)]
     pub proxy_url: Option<String>,
@@ -26,8 +29,12 @@ pub struct PulsarOpts {
 }
 
 impl PulsarOpts {
-    pub fn create_context(&self) -> PulsarContext {
-        PulsarContext::create(self.clone())
+    pub fn to_pulsar_config(&self) -> PulsarConfig {
+        PulsarConfig {
+            url: self.url.as_ref().unwrap_or(&String::from("pulsar://localhost:6650")).clone(),
+            auth_name: self.auth_name.clone(),
+            auth_params: self.auth_params.clone(),
+        }
     }
 }
 
