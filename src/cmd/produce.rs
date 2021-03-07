@@ -3,6 +3,8 @@ use crate::context::PulsarContext;
 use clap::Clap;
 use std::io::stdin;
 use pulsar::ProducerOptions;
+use pulsar::message::proto::CompressionType;
+use pulsar::message::proto::CompressionType::{Lz4, Zlib, Zstd, Snappy};
 
 #[derive(Clap, Debug, Clone)]
 pub struct ProduceOpts {
@@ -13,16 +15,45 @@ pub struct ProduceOpts {
 
     #[clap(short = 'm', long)]
     pub message: Option<String>,
+
+    #[clap(long, default_value = "1024")]
+    pub batch_size: u32,
+
+    #[clap(long)]
+    pub compression: Option<String>,
 }
 
 impl ProduceOpts {
+    fn parse_batch_size(&self) -> Option<u32> {
+        if self.message.is_some() {
+            None
+        } else {
+            Some(self.batch_size)
+        }
+    }
+
+    fn parse_compression(&self) -> Result<Option<CompressionType>, Box<dyn Error>> {
+        match self.compression.as_ref() {
+            Some(str) => {
+                match str.to_lowercase().as_str() {
+                    "lz4" => Ok(Some(Lz4)),
+                    "zlib" => Ok(Some(Zlib)),
+                    "zstd" => Ok(Some(Zstd)),
+                    "snappy" => Ok(Some(Snappy)),
+                    _ => Err(Box::<dyn Error>::from(format!("illegal compression [{}]", str))),
+                }
+            }
+            None => Ok(None),
+        }
+    }
+
     pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
         let options = ProducerOptions {
             encrypted: None,
             metadata: Default::default(),
             schema: None,
-            batch_size: None,
-            compression: None
+            batch_size: self.parse_batch_size(),
+            compression: self.parse_compression()?,
         };
         let mut producer = pulsar_ctx.client().await?.producer()
             .with_topic(self.topic.clone())
@@ -41,9 +72,9 @@ impl ProduceOpts {
                 if size == 0 {
                     break;
                 }
-                let r = producer.send(line.trim()).await?.await?;
-                debug!("sent message: {:?}", r);
+                producer.send(line.trim()).await?;
             }
+            producer.send_batch().await?;
         }
 
         Ok(())
