@@ -1,8 +1,11 @@
 use pulsar::{Pulsar, TokioExecutor, Authentication};
 use std::error::Error;
 use crate::config::PulsarConfig;
+use std::sync::Mutex;
 
 pub struct PulsarContext {
+    mutex: Mutex<()>,
+
     config: PulsarConfig,
 
     client: Option<Box<Pulsar<TokioExecutor>>>,
@@ -11,6 +14,7 @@ pub struct PulsarContext {
 impl From<PulsarConfig> for PulsarContext {
     fn from(cfg: PulsarConfig) -> Self {
         PulsarContext {
+            mutex: Mutex::new(()),
             config: cfg,
             client: None,
         }
@@ -19,6 +23,7 @@ impl From<PulsarConfig> for PulsarContext {
 
 impl PulsarContext {
     pub async fn client(&mut self) -> Result<&Pulsar<TokioExecutor>, Box<dyn Error>> {
+        let _guard = self.mutex.lock();
         if self.client.is_none() {
             let mut builder = Pulsar::builder(self.config.url.clone(), TokioExecutor);
             if let Some(auth_data) = self.config.auth_params.as_ref() {
