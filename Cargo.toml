@@ -8,8 +8,8 @@ edition = "2018"
 
 [dependencies]
 futures = "0.3"
-pulsar = "1.0"
-tokio = "0.2"
+pulsar = "2.0"
+tokio = { version = "1.0", features = ["full"] }
 env_logger = "0.7"
 log = "0.4"
 toml = "0.5"
