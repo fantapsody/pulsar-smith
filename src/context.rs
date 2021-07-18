@@ -32,6 +32,7 @@ impl PulsarContext {
                     data: auth_data.clone().into_bytes(),
                 });
             }
+            builder = builder.with_allow_insecure_connection(self.config.allow_insecure_connection);
             self.client = Some(Box::new(builder.build().await?));
             info!("created a new pulsar client");
         }

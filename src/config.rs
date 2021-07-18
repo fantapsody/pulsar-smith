@@ -10,6 +10,8 @@ pub struct PulsarConfig {
     pub auth_name: Option<String>,
 
     pub auth_params: Option<String>,
+
+    pub allow_insecure_connection: bool,
 }
 
 impl PulsarConfig {
@@ -32,10 +34,12 @@ impl Configs {
         if let Some(context_item) = self.contexts.iter().find(|p| {p.name == context_name}) {
             if let Some(cluster_item) = self.clusters.iter().find(|p| {p.name == context_item.context.cluster}) {
                 if let Some(user_item) = self.users.iter().find(|p| p.name == context_item.context.user) {
+                    let user = &user_item.user;
                     Ok(PulsarConfig {
                         url: cluster_item.cluster.url.clone(),
-                        auth_name: user_item.user.auth_name.clone(),
-                        auth_params: user_item.user.auth_params.clone(),
+                        allow_insecure_connection: cluster_item.cluster.allow_insecure_connection,
+                        auth_name: user.auth_name.clone(),
+                        auth_params: user.auth_params.clone(),
                     })
                 } else {
                     Err(Box::<dyn Error>::from(format!("context [{}] not exist", context_name)))
@@ -78,6 +82,8 @@ pub struct ClusterItem {
 #[derive(Serialize, Deserialize)]
 pub struct Cluster {
     url: String,
+    #[serde(rename = "allow-insecure-connection", default)]
+    allow_insecure_connection: bool,
 }
 
 #[derive(Serialize, Deserialize)]

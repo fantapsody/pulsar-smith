@@ -3,10 +3,8 @@ use crate::context::PulsarContext;
 use clap::Clap;
 use futures::TryStreamExt;
 use pulsar::{Consumer, ConsumerOptions, SubType};
-use pulsar::message::proto::command_subscribe::SubType::{Exclusive, Failover, Shared};
 use std::u64::MAX;
-use pulsar::message::proto::command_subscribe::InitialPosition;
-use pulsar::message::proto::command_subscribe::InitialPosition::{Earliest, Latest};
+use pulsar::consumer::InitialPosition;
 
 #[derive(Clap, Debug, Clone)]
 pub struct ConsumeOpts {
@@ -31,17 +29,17 @@ pub struct ConsumeOpts {
 impl ConsumeOpts {
     fn parse_sub_type(t: &str) -> Result<SubType, Box<dyn Error>> {
         match t.to_lowercase().as_str() {
-            "exclusive" => Ok(Exclusive),
-            "shared" => Ok(Shared),
-            "failover" => Ok(Failover),
+            "exclusive" => Ok(SubType::Exclusive),
+            "shared" => Ok(SubType::Shared),
+            "failover" => Ok(SubType::Failover),
             _ => Err(Box::<dyn Error>::from(format!("illegal subscription type [{}]", t))),
         }
     }
 
     fn parse_subscription_position(t: &str) -> Result<InitialPosition, Box<dyn Error>> {
         match t.to_lowercase().as_str() {
-            "earliest" => Ok(Earliest),
-            "latest" => Ok(Latest),
+            "earliest" => Ok(InitialPosition::Earliest),
+            "latest" => Ok(InitialPosition::Latest),
             _ => Err(Box::<dyn Error>::from(format!("illegal initial position [{}]", t))),
         }
     }
@@ -60,7 +58,7 @@ impl ConsumeOpts {
                 metadata: Default::default(),
                 read_compacted: Some(true),
                 schema: None,
-                initial_position: Some(Self::parse_subscription_position(self.subscription_position.as_str())? as i32),
+                initial_position: Self::parse_subscription_position(self.subscription_position.as_str())?,
             })
             .build()
             .await?;

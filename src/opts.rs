@@ -24,6 +24,9 @@ pub struct PulsarOpts {
     #[clap(long)]
     pub auth_params: Option<String>,
 
+    #[clap(long)]
+    pub allow_insecure_connection: Option<bool>,
+
     #[clap(subcommand)]
     pub cmd: Command,
 }
@@ -34,6 +37,7 @@ impl PulsarOpts {
             url: self.url.as_ref().unwrap_or(&String::from("pulsar://localhost:6650")).clone(),
             auth_name: self.auth_name.clone(),
             auth_params: self.auth_params.clone(),
+            allow_insecure_connection: self.allow_insecure_connection.unwrap_or(false),
         }
     }
 }
