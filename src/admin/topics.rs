@@ -1,7 +1,6 @@
 use std::error::Error;
 
 use crate::admin::admin::PulsarAdmin;
-use crate::admin::topics::TopicDomain::{NonPersistent, Persistent};
 
 pub struct PulsarAdminTopics {
     pub(crate) admin: PulsarAdmin,
@@ -16,7 +15,7 @@ impl ToString for TopicDomain {
     #[inline]
     fn to_string(&self) -> String {
         match self {
-            Persistent => "persistent",
+            TopicDomain::Persistent => "persistent",
             TopicDomain::NonPersistent => "non-persistent",
         }.to_string()
     }
@@ -24,9 +23,9 @@ impl ToString for TopicDomain {
 
 impl TopicDomain {
     pub fn parse(name: &str) -> Result<TopicDomain, Box<dyn Error>> {
-        match name.to_uppercase().as_str() {
-            "PERSISTENT" => Ok(Persistent),
-            "NON_PERSISTENT" => Ok(NonPersistent),
+        match name.to_uppercase().replace("-", "_").as_str() {
+            "PERSISTENT" => Ok(TopicDomain::Persistent),
+            "NON_PERSISTENT" => Ok(TopicDomain::NonPersistent),
             &_ => Err(Box::<dyn Error>::from(format!("invalid domain name [{}]", name)))
         }
     }

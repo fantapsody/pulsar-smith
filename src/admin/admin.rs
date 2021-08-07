@@ -1,6 +1,7 @@
 use crate::admin::topics::PulsarAdminTopics;
 use reqwest::{Client, RequestBuilder};
 use std::error::Error;
+use crate::admin::tenants::PulsarAdminTenants;
 
 
 #[derive(Debug, Clone)]
@@ -24,6 +25,12 @@ impl PulsarAdmin {
 
     pub fn topics(&self) -> PulsarAdminTopics {
         PulsarAdminTopics {
+            admin: self.clone(),
+        }
+    }
+
+    pub fn tenants(&self) -> PulsarAdminTenants {
+        PulsarAdminTenants {
             admin: self.clone(),
         }
     }

@@ -3,6 +3,7 @@ use crate::cmd::produce::ProduceOpts;
 use crate::cmd::consume::ConsumeOpts;
 use crate::config::PulsarConfig;
 use crate::cmd::topics::TopicsOpts;
+use crate::cmd::tenants::TenantsOpts;
 
 #[derive(Clap, Debug, Clone)]
 #[clap(version = "1.0", author = "Yang Yang <yyang@streamnative.io>")]
@@ -48,6 +49,7 @@ impl PulsarOpts {
 pub enum Command {
     Produce(ProduceOpts),
     Consume(ConsumeOpts),
+    Tenants(TenantsOpts),
     Topics(TopicsOpts),
 }
 
