@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use reqwest::{Client, header, RequestBuilder};
+use reqwest::{Client, header, RequestBuilder, ClientBuilder};
 
 use crate::admin::tenants::PulsarAdminTenants;
 use crate::admin::topics::PulsarAdminTopics;
@@ -21,7 +21,7 @@ impl PulsarAdmin {
         }
     }
 
-    pub(crate) fn get(&self, p: &str) -> Result<RequestBuilder, Box<dyn Error>> {
+    fn client_builder(&self) -> Result<ClientBuilder, Box<dyn Error>> {
         let mut builder = Client::builder();
         if self.auth_name.is_some() && self.auth_params.is_some() {
             if self.auth_name.as_ref().unwrap() == "token" {
@@ -30,8 +30,12 @@ impl PulsarAdmin {
                 builder = builder.default_headers(headers);
             }
         }
+        Ok(builder)
+    }
 
-        Ok(builder.build()?
+    pub(crate) fn get(&self, p: &str) -> Result<RequestBuilder, Box<dyn Error>> {
+        Ok(self.client_builder()?
+            .build()?
             .get(self.service_url.clone() + p))
     }
 

@@ -2,9 +2,8 @@ use std::error::Error;
 
 use clap::Clap;
 
-use crate::cmd::topics::Command::List;
-use crate::context::PulsarContext;
 use crate::admin::topics::TopicDomain;
+use crate::context::PulsarContext;
 
 #[derive(Clap, Debug, Clone)]
 pub struct TopicsOpts {
@@ -15,7 +14,8 @@ pub struct TopicsOpts {
 impl TopicsOpts {
     pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
         match &self.cmd {
-            List(opts) => opts.run(pulsar_ctx).await?,
+            Command::List(opts) => opts.run(pulsar_ctx).await?,
+            Command::Lookup(opts) => opts.run(pulsar_ctx).await?,
         }
         Ok(())
     }
@@ -24,6 +24,7 @@ impl TopicsOpts {
 #[derive(Clap, Debug, Clone)]
 pub enum Command {
     List(ListOpts),
+    Lookup(LookupOpts),
 }
 
 #[derive(Clap, Debug, Clone)]
@@ -41,6 +42,22 @@ impl ListOpts {
             .list(self.namespace.as_str(), TopicDomain::parse(self.domain.as_ref())?)
             .await?;
         println!("{:?}", r);
+        Ok(())
+    }
+}
+
+#[derive(Clap, Debug, Clone)]
+pub struct LookupOpts {
+    pub topic: String,
+}
+
+impl LookupOpts {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+        let r = pulsar_ctx.admin().await?
+            .topics()
+            .lookup(self.topic.as_str())
+            .await?;
+        println!("{}", serde_json::to_string(&r)?);
         Ok(())
     }
 }
