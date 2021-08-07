@@ -4,6 +4,7 @@ use crate::cmd::consume::ConsumeOpts;
 use crate::config::PulsarConfig;
 use crate::cmd::topics::TopicsOpts;
 use crate::cmd::tenants::TenantsOpts;
+use crate::cmd::auth::AuthOpts;
 
 #[derive(Clap, Debug, Clone)]
 #[clap(version = "1.0", author = "Yang Yang <yyang@streamnative.io>")]
@@ -51,6 +52,7 @@ pub enum Command {
     Consume(ConsumeOpts),
     Tenants(TenantsOpts),
     Topics(TopicsOpts),
+    Auth(AuthOpts),
 }
 
 pub fn parse_opts() -> PulsarOpts {

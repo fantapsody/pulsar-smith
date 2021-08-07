@@ -4,6 +4,7 @@ use std::sync::Mutex;
 use pulsar::{Authentication, Pulsar, TokioExecutor};
 
 use crate::admin::admin::PulsarAdmin;
+use crate::auth::auth::Authn;
 use crate::config::PulsarConfig;
 
 pub struct PulsarContext {
@@ -46,5 +47,10 @@ impl PulsarContext {
         Ok(PulsarAdmin::new(self.config.admin_url.clone(),
                             self.config.auth_name.clone(),
                             self.config.auth_params.clone()))
+    }
+
+    pub fn authn(&self) -> Result<Box<dyn Authn>, Box<dyn Error>> {
+        crate::auth::auth::create(self.config.auth_name.clone().expect("auth name is not provided"),
+                                  self.config.auth_params.clone().expect("auth params is not provided"))
     }
 }

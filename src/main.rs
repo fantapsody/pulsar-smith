@@ -3,6 +3,7 @@ mod context;
 mod cmd;
 mod config;
 mod admin;
+mod auth;
 
 #[macro_use]
 extern crate log;
@@ -35,6 +36,7 @@ async fn main() -> Result<(), Box<dyn Error>>{
         Command::Consume(x) => x.run(&mut ctx).await?,
         Command::Tenants(x) => x.run(&mut ctx).await?,
         Command::Topics(x) => x.run(&mut ctx).await?,
+        Command::Auth(x) => x.run(&mut ctx).await?,
     };
 
     Ok(())
