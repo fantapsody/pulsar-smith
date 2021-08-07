@@ -2,6 +2,7 @@ use clap::Clap;
 use crate::cmd::produce::ProduceOpts;
 use crate::cmd::consume::ConsumeOpts;
 use crate::config::PulsarConfig;
+use crate::cmd::topics::TopicsOpts;
 
 #[derive(Clap, Debug, Clone)]
 #[clap(version = "1.0", author = "Yang Yang <yyang@streamnative.io>")]
@@ -13,7 +14,7 @@ pub struct PulsarOpts {
     pub url: Option<String>,
 
     #[clap(long)]
-    pub admin_service_url: Option<String>,
+    pub admin_url: Option<String>,
 
     #[clap(long)]
     pub proxy_url: Option<String>,
@@ -35,6 +36,7 @@ impl PulsarOpts {
     pub fn to_pulsar_config(&self) -> PulsarConfig {
         PulsarConfig {
             url: self.url.as_ref().unwrap_or(&String::from("pulsar://localhost:6650")).clone(),
+            admin_url: self.admin_url.as_ref().unwrap_or(&String::from("http://localhost:8080")).clone(),
             auth_name: self.auth_name.clone(),
             auth_params: self.auth_params.clone(),
             allow_insecure_connection: self.allow_insecure_connection.unwrap_or(false),
@@ -46,6 +48,7 @@ impl PulsarOpts {
 pub enum Command {
     Produce(ProduceOpts),
     Consume(ConsumeOpts),
+    Topics(TopicsOpts),
 }
 
 pub fn parse_opts() -> PulsarOpts {

@@ -2,6 +2,7 @@ use pulsar::{Pulsar, TokioExecutor, Authentication};
 use std::error::Error;
 use crate::config::PulsarConfig;
 use std::sync::Mutex;
+use crate::admin::admin::PulsarAdmin;
 
 pub struct PulsarContext {
     mutex: Mutex<()>,
@@ -37,5 +38,9 @@ impl PulsarContext {
             info!("created a new pulsar client");
         }
         Ok(self.client.as_ref().unwrap())
+    }
+
+    pub async fn admin(&mut self) -> Result<PulsarAdmin, Box<dyn Error>> {
+        Ok(PulsarAdmin::new(self.config.admin_url.clone()))
     }
 }

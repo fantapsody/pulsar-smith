@@ -7,6 +7,8 @@ const CONFIG_PATH: &str = ".pulsar-smith/config";
 pub struct PulsarConfig {
     pub url: String,
 
+    pub admin_url: String,
+
     pub auth_name: Option<String>,
 
     pub auth_params: Option<String>,
@@ -37,6 +39,7 @@ impl Configs {
                     let user = &user_item.user;
                     Ok(PulsarConfig {
                         url: cluster_item.cluster.url.clone(),
+                        admin_url: cluster_item.cluster.admin_service_url.clone().unwrap(),
                         allow_insecure_connection: cluster_item.cluster.allow_insecure_connection,
                         auth_name: user.auth_name.clone(),
                         auth_params: user.auth_params.clone(),
@@ -82,6 +85,8 @@ pub struct ClusterItem {
 #[derive(Serialize, Deserialize)]
 pub struct Cluster {
     url: String,
+    #[serde(rename = "admin-url", default)]
+    admin_service_url: Option<String>,
     #[serde(rename = "allow-insecure-connection", default)]
     allow_insecure_connection: bool,
 }
