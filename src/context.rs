@@ -1,8 +1,10 @@
-use pulsar::{Pulsar, TokioExecutor, Authentication};
 use std::error::Error;
-use crate::config::PulsarConfig;
 use std::sync::Mutex;
+
+use pulsar::{Authentication, Pulsar, TokioExecutor};
+
 use crate::admin::admin::PulsarAdmin;
+use crate::config::PulsarConfig;
 
 pub struct PulsarContext {
     mutex: Mutex<()>,
@@ -41,6 +43,8 @@ impl PulsarContext {
     }
 
     pub async fn admin(&mut self) -> Result<PulsarAdmin, Box<dyn Error>> {
-        Ok(PulsarAdmin::new(self.config.admin_url.clone()))
+        Ok(PulsarAdmin::new(self.config.admin_url.clone(),
+                            self.config.auth_name.clone(),
+                            self.config.auth_params.clone()))
     }
 }

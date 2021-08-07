@@ -1,23 +1,35 @@
-use crate::admin::topics::PulsarAdminTopics;
-use reqwest::{Client, RequestBuilder};
 use std::error::Error;
-use crate::admin::tenants::PulsarAdminTenants;
 
+use reqwest::{Client, header, RequestBuilder};
+
+use crate::admin::tenants::PulsarAdminTenants;
+use crate::admin::topics::PulsarAdminTopics;
 
 #[derive(Debug, Clone)]
-pub struct  PulsarAdmin {
+pub struct PulsarAdmin {
     service_url: String,
+    auth_name: Option<String>,
+    auth_params: Option<String>,
 }
 
 impl PulsarAdmin {
-    pub fn new(service_url: String) -> PulsarAdmin {
+    pub fn new(service_url: String, auth_name: Option<String>, auth_params: Option<String>) -> PulsarAdmin {
         PulsarAdmin {
             service_url,
+            auth_name,
+            auth_params,
         }
     }
 
     pub(crate) fn get(&self, p: &str) -> Result<RequestBuilder, Box<dyn Error>> {
         let mut builder = Client::builder();
+        if self.auth_name.is_some() && self.auth_params.is_some() {
+            if self.auth_name.as_ref().unwrap() == "token" {
+                let mut headers = header::HeaderMap::new();
+                headers.insert("Authorization", header::HeaderValue::from_str(format!("Bearer {}", self.auth_params.as_ref().unwrap()).as_str())?);
+                builder = builder.default_headers(headers);
+            }
+        }
 
         Ok(builder.build()?
             .get(self.service_url.clone() + p))
