@@ -4,6 +4,7 @@ use reqwest::{Client, header, RequestBuilder, ClientBuilder};
 
 use crate::admin::tenants::PulsarAdminTenants;
 use crate::admin::topics::PulsarAdminTopics;
+use crate::admin::namespaces::PulsarAdminNamespaces;
 
 #[derive(Debug, Clone)]
 pub struct PulsarAdmin {
@@ -39,14 +40,20 @@ impl PulsarAdmin {
             .get(self.service_url.clone() + p))
     }
 
-    pub fn topics(&self) -> PulsarAdminTopics {
-        PulsarAdminTopics {
+    pub fn tenants(&self) -> PulsarAdminTenants {
+        PulsarAdminTenants {
             admin: self.clone(),
         }
     }
 
-    pub fn tenants(&self) -> PulsarAdminTenants {
-        PulsarAdminTenants {
+    pub fn namespaces(&self) -> PulsarAdminNamespaces {
+        PulsarAdminNamespaces {
+            admin: self.clone(),
+        }
+    }
+
+    pub fn topics(&self) -> PulsarAdminTopics {
+        PulsarAdminTopics {
             admin: self.clone(),
         }
     }

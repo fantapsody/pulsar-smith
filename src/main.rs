@@ -38,6 +38,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Command::Produce(x) => x.run(&mut ctx).await?,
         Command::Consume(x) => x.run(&mut ctx).await?,
         Command::Tenants(x) => x.run(&mut ctx).await?,
+        Command::Namespaces(x) => x.run(&mut ctx).await?,
         Command::Topics(x) => x.run(&mut ctx).await?,
         Command::Auth(x) => x.run(&mut ctx).await?,
     };
