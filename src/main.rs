@@ -1,3 +1,11 @@
+#[macro_use]
+extern crate log;
+
+use std::error::Error;
+
+use crate::config::Configs;
+use crate::opts::{Command, parse_opts};
+
 mod opts;
 mod context;
 mod cmd;
@@ -5,19 +13,14 @@ mod config;
 mod admin;
 mod auth;
 
-#[macro_use]
-extern crate log;
-
-use std::error::Error;
-use crate::opts::{parse_opts, Command};
-use crate::config::Configs;
-
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>>{
+async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
     let opts = parse_opts();
     let cfg = if let Some(_) = &opts.url {
+        opts.to_pulsar_config()
+    } else if matches!(opts.cmd, Command::Auth(_)) && opts.auth_name.is_some() && opts.auth_params.is_some() {
         opts.to_pulsar_config()
     } else {
         let configs = Configs::load()?;
