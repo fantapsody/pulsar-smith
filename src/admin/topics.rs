@@ -49,6 +49,39 @@ pub struct LookupResponse {
     pub native_url: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TopicStats {
+    count: i64,
+    #[serde(rename = "msgRateIn")]
+    msg_rate_in: f64,
+    #[serde(rename = "msgRateOut")]
+    msg_rate_out: f64,
+    #[serde(rename = "msgThroughputIn")]
+    msg_throughput_in: f64,
+    #[serde(rename = "msgThroughputOut")]
+    msg_throughput_out: f64,
+    #[serde(rename = "msgInCounter")]
+    msg_in_counter: i64,
+    #[serde(rename = "msgOutCounter")]
+    msg_out_counter: i64,
+    #[serde(rename = "bytesInCounter")]
+    bytes_in_counter: i64,
+    #[serde(rename = "bytesOutCounter")]
+    bytes_out_counter: i64,
+    #[serde(rename = "averageMsgSize")]
+    average_msg_size: f64,
+    #[serde(rename = "msgChunkPublished")]
+    msg_chunk_published: bool,
+    #[serde(rename = "storageSize")]
+    storage_size: i64,
+    #[serde(rename = "backlogSize")]
+    backlog_size: i64,
+    #[serde(rename = "offloadedStorageSize")]
+    offloaded_storage_size: i64,
+    #[serde(rename = "waitingPublishers")]
+    waiting_publishers: i64,
+}
+
 impl PulsarAdminTopics {
     pub async fn list(&self, namespace: &str, domain: TopicDomain) -> Result<Vec<String>, Box<dyn Error>> {
         Ok(self.admin.get(format!("/admin/v2/{}/{}", domain.to_string(), namespace).as_str())?
@@ -62,6 +95,21 @@ impl PulsarAdminTopics {
             .send().await?
             .text().await?;
         debug!("Lookup response: {}", body);
+        Ok(serde_json::from_str(body.as_str())?)
+    }
+
+    pub async fn stats(&self, topic: &str,
+                       get_precise_backlog: bool,
+                       subscription_backlog_size: bool) -> Result<TopicStats, Box<dyn Error>> {
+        let canonical_topic = topic.replace("://", "/");
+        let body = self.admin.get(format!("/admin/v2/{}/stats", canonical_topic).as_str())?
+            .query(&[
+                ("getPreciseBacklog", get_precise_backlog),
+                ("subscriptionBacklogSize", subscription_backlog_size)
+            ])
+            .send().await?
+            .text().await?;
+        debug!("Stats response:\n{}", body);
         Ok(serde_json::from_str(body.as_str())?)
     }
 }
