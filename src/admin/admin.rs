@@ -1,10 +1,10 @@
 use std::error::Error;
 
-use reqwest::{Client, header, RequestBuilder, ClientBuilder};
+use reqwest::{Client, ClientBuilder, header, RequestBuilder};
 
+use crate::admin::namespaces::PulsarAdminNamespaces;
 use crate::admin::tenants::PulsarAdminTenants;
 use crate::admin::topics::PulsarAdminTopics;
-use crate::admin::namespaces::PulsarAdminNamespaces;
 
 #[derive(Debug, Clone)]
 pub struct PulsarAdmin {
@@ -38,6 +38,18 @@ impl PulsarAdmin {
         Ok(self.client_builder()?
             .build()?
             .get(self.service_url.clone() + p))
+    }
+
+    pub(crate) fn post(&self, p: &str) -> Result<RequestBuilder, Box<dyn Error>> {
+        Ok(self.client_builder()?
+            .build()?
+            .post(self.service_url.clone() + p))
+    }
+
+    pub(crate) fn delete(&self, p: &str) -> Result<RequestBuilder, Box<dyn Error>> {
+        Ok(self.client_builder()?
+            .build()?
+            .delete(self.service_url.clone() + p))
     }
 
     pub fn tenants(&self) -> PulsarAdminTenants {

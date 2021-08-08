@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::error::Error;
 
 use serde::{Deserialize, Serialize};
@@ -111,5 +112,37 @@ impl PulsarAdminTopics {
             .text().await?;
         debug!("Stats response:\n{}", body);
         Ok(serde_json::from_str(body.as_str())?)
+    }
+
+    pub async fn permissions(&self, topic: &str) -> Result<HashMap<String, Vec<Option<String>>>, Box<dyn Error>> {
+        let canonical_topic = topic.replace("://", "/");
+        Ok(self.admin.get(format!("/admin/v2/{}/permissions", canonical_topic).as_str())?
+            .send().await?
+            .json().await?)
+    }
+
+    pub async fn grant_permissions(&self, topic: &str, role: &str, permissions: &Vec<String>) -> Result<(), Box<dyn Error>> {
+        let canonical_topic = topic.replace("://", "/");
+        let resp = self.admin.post(format!("/admin/v2/{}/permissions/{}", canonical_topic, role).as_str())?
+            .json(&permissions)
+            .send().await?;
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            resp.error_for_status()?;
+            Ok(())
+        }
+    }
+
+    pub async fn revoke_permissions(&self, topic: &str, role: &str) -> Result<(), Box<dyn Error>> {
+        let canonical_topic = topic.replace("://", "/");
+        let resp = self.admin.delete(format!("/admin/v2/{}/permissions/{}", canonical_topic, role).as_str())?
+            .send().await?;
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            resp.error_for_status()?;
+            Ok(())
+        }
     }
 }

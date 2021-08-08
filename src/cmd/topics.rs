@@ -17,6 +17,9 @@ impl TopicsOpts {
             Command::List(opts) => opts.run(pulsar_ctx).await?,
             Command::Lookup(opts) => opts.run(pulsar_ctx).await?,
             Command::Stats(opts) => opts.run(pulsar_ctx).await?,
+            Command::Permissions(opts) => opts.run(pulsar_ctx).await?,
+            Command::GrantPermissions(opts) => opts.run(pulsar_ctx).await?,
+            Command::RevokePermissions(opts) => opts.run(pulsar_ctx).await?,
         }
         Ok(())
     }
@@ -27,6 +30,9 @@ pub enum Command {
     List(ListOpts),
     Lookup(LookupOpts),
     Stats(StatsOpts),
+    Permissions(PermissionsOpts),
+    GrantPermissions(GrantPermissionsOpts),
+    RevokePermissions(RevokePermissionsOpts),
 }
 
 #[derive(Clap, Debug, Clone)]
@@ -82,6 +88,62 @@ impl StatsOpts {
             .stats(self.topic.as_str(), self.get_precise_backlog, self.subscription_backlog_size)
             .await?;
         println!("{}", serde_json::to_string(&r)?);
+        Ok(())
+    }
+}
+
+#[derive(Clap, Debug, Clone)]
+pub struct PermissionsOpts {
+    pub topic: String,
+}
+
+impl PermissionsOpts {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+        let r = pulsar_ctx.admin().await?
+            .topics()
+            .permissions(self.topic.as_str())
+            .await?;
+        println!("{}", serde_json::to_string(&r)?);
+        Ok(())
+    }
+}
+
+
+#[derive(Clap, Debug, Clone)]
+pub struct GrantPermissionsOpts {
+    pub topic: String,
+
+    #[clap(long)]
+    pub role: String,
+
+    #[clap(long)]
+    pub actions: Vec<String>,
+}
+
+impl GrantPermissionsOpts {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+        pulsar_ctx.admin().await?
+            .topics()
+            .grant_permissions(self.topic.as_str(), self.role.as_str(), &self.actions)
+            .await?;
+        Ok(())
+    }
+}
+
+#[derive(Clap, Debug, Clone)]
+pub struct RevokePermissionsOpts {
+    pub topic: String,
+
+    #[clap(long)]
+    pub role: String,
+}
+
+impl RevokePermissionsOpts {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+        pulsar_ctx.admin().await?
+            .topics()
+            .revoke_permissions(self.topic.as_str(), self.role.as_str())
+            .await?;
         Ok(())
     }
 }
