@@ -39,7 +39,8 @@ impl Configs {
                     let user = &user_item.user;
                     Ok(PulsarConfig {
                         url: cluster_item.cluster.url.clone(),
-                        admin_url: cluster_item.cluster.admin_service_url.clone().unwrap(),
+                        admin_url: cluster_item.cluster.admin_service_url.clone()
+                            .expect(format!("admin-url not defined for cluster [{}]", cluster_item.name.as_str()).as_str()),
                         allow_insecure_connection: cluster_item.cluster.allow_insecure_connection,
                         auth_name: user.auth_name.clone(),
                         auth_params: user.auth_params.clone(),
