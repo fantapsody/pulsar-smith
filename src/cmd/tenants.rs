@@ -57,7 +57,7 @@ impl CreateOpts {
     pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
         let r = pulsar_ctx.admin().await?
             .tenants()
-            .create(self.tenant.as_str(), &TenantInfo{
+            .create(self.tenant.as_str(), TenantInfo{
                 admin_roles: self.admin_roles.clone().unwrap_or(Vec::new()),
                 allowed_clusters: self.allowed_clusters.clone().unwrap_or(Vec::new()),
             })

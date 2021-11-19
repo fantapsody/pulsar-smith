@@ -17,7 +17,13 @@ pub struct TenantInfo {
 }
 
 impl PulsarAdminTenants {
-    pub async fn create(&self, tenant: &str, info: &TenantInfo) -> Result<(), Box<dyn Error>> {
+    pub async fn create(&self, tenant: &str, mut info: TenantInfo) -> Result<(), Box<dyn Error>> {
+        if info.allowed_clusters.is_empty() {
+            let clusters = self.admin.clusters().list().await?;
+            if clusters.len() == 1 {
+                info.allowed_clusters.push(clusters[0].clone());
+            }
+        }
         let r = self.admin.put(format!("/admin/v2/tenants/{}", tenant).as_str())?
             .json(&info)
             .send().await?;
