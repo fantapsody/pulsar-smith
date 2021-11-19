@@ -6,6 +6,7 @@ use crate::cmd::topics::TopicsOpts;
 use crate::cmd::tenants::TenantsOpts;
 use crate::cmd::auth::AuthOpts;
 use crate::cmd::namespaces::NamespacesOpts;
+use crate::cmd::clusters::ClustersOpts;
 
 #[derive(Clap, Debug, Clone)]
 #[clap(version = "1.0", author = "Yang Yang <yyang@streamnative.io>")]
@@ -51,6 +52,7 @@ impl PulsarOpts {
 pub enum Command {
     Produce(ProduceOpts),
     Consume(ConsumeOpts),
+    Clusters(ClustersOpts),
     Tenants(TenantsOpts),
     Namespaces(NamespacesOpts),
     Topics(TopicsOpts),
