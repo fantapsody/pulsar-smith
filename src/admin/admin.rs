@@ -34,6 +34,12 @@ impl PulsarAdmin {
         Ok(builder)
     }
 
+    pub(crate) fn put(&self, p: &str) -> Result<RequestBuilder, Box<dyn Error>> {
+        Ok(self.client_builder()?
+            .build()?
+            .put(self.service_url.clone() + p))
+    }
+
     pub(crate) fn get(&self, p: &str) -> Result<RequestBuilder, Box<dyn Error>> {
         Ok(self.client_builder()?
             .build()?
