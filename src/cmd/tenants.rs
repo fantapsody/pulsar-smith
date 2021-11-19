@@ -16,6 +16,7 @@ impl TenantsOpts {
         match &self.cmd {
             Command::List(opts) => opts.run(pulsar_ctx).await?,
             Command::Create(opts) => opts.run(pulsar_ctx).await?,
+            Command::Get(opts) => opts.run(pulsar_ctx).await?,
         }
         Ok(())
     }
@@ -25,6 +26,7 @@ impl TenantsOpts {
 pub enum Command {
     List(ListOpts),
     Create(CreateOpts),
+    Get(GetOpts),
 }
 
 #[derive(Clap, Debug, Clone)]
@@ -63,6 +65,23 @@ impl CreateOpts {
             })
             .await?;
         println!("{:?}", r);
+        Ok(())
+    }
+}
+
+
+#[derive(Clap, Debug, Clone)]
+pub struct GetOpts {
+    pub tenant: String,
+}
+
+impl GetOpts {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+        let r = pulsar_ctx.admin().await?
+            .tenants()
+            .get(self.tenant.as_str())
+            .await?;
+        println!("{}", serde_json::to_string(&r)?);
         Ok(())
     }
 }

@@ -1,13 +1,14 @@
 use std::error::Error;
 
+use serde::{Deserialize, Serialize};
+
 use crate::admin::admin::PulsarAdmin;
-use serde::Serialize;
 
 pub struct PulsarAdminTenants {
     pub(crate) admin: PulsarAdmin,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TenantInfo {
     #[serde(rename = "adminRoles")]
     pub admin_roles: Vec<String>,
@@ -39,5 +40,11 @@ impl PulsarAdminTenants {
         Ok(self.admin.get("/admin/v2/tenants")?
             .send().await?
             .json::<Vec<String>>().await?)
+    }
+
+    pub async fn get(&self, tenant: &str) -> Result<TenantInfo, Box<dyn Error>> {
+        Ok(self.admin.get(format!("/admin/v2/tenants/{}", tenant).as_str())?
+            .send().await?
+            .json::<TenantInfo>().await?)
     }
 }
