@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::error::Error;
+use serde::Serialize;
 
 use crate::admin::admin::PulsarAdmin;
 
@@ -7,11 +8,29 @@ pub struct PulsarAdminNamespaces {
     pub(crate) admin: PulsarAdmin,
 }
 
+#[derive(Serialize)]
+pub struct NamespacePolicies {
+    pub bundles: Option<u64>,
+
+    pub clusters: Option<Vec<String>>,
+}
+
 impl PulsarAdminNamespaces {
     pub async fn list(&self, namespace: &str) -> Result<Vec<String>, Box<dyn Error>> {
         Ok(self.admin.get(format!("/admin/v2/namespaces/{}", namespace).as_str())?
             .send().await?
             .json::<Vec<String>>().await?)
+    }
+
+    pub async fn create(&self, namespace: &str, policies: &NamespacePolicies) -> Result<(), Box<dyn Error>> {
+        let res = self.admin.put(format!("/admin/v2/namespaces/{}", namespace).as_str())?
+            .json(policies)
+            .send().await?;
+        if res.status().is_success() {
+            Ok(())
+        } else {
+            Err(Box::from(res.text().await?))
+        }
     }
 
     pub async fn permissions(&self, namespace: &str) -> Result<HashMap<String, Vec<String>>, Box<dyn Error>> {
