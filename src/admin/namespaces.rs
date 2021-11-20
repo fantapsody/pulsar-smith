@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::error::Error;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 use crate::admin::admin::PulsarAdmin;
 
@@ -8,11 +8,38 @@ pub struct PulsarAdminNamespaces {
     pub(crate) admin: PulsarAdmin,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct NamespacePolicies {
-    pub bundles: Option<u64>,
+    pub bundles: Option<BundlesData>,
 
-    pub clusters: Option<Vec<String>>,
+    pub replication_clusters: Option<Vec<String>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub persistence: Option<PersistencePolicies>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct BundlesData {
+    #[serde(rename = "numBundles")]
+    pub num_bundles: u64,
+
+    #[serde(rename = "boundaries")]
+    pub boundaries: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PersistencePolicies {
+    #[serde(rename = "bookkeeperEnsemble")]
+    pub bookkeeper_ensemble: i32,
+
+    #[serde(rename = "bookkeeperWriteQuorum")]
+    pub bookkeeper_write_quorum: i32,
+
+    #[serde(rename = "bookkeeperAckQuorum")]
+    pub bookkeeper_ack_quorum: i32,
+
+    #[serde(rename = "managedLedgerMaxMarkDeleteRate")]
+    pub managed_ledger_max_mark_delete_rate: f64
 }
 
 impl PulsarAdminNamespaces {
@@ -21,6 +48,7 @@ impl PulsarAdminNamespaces {
             .send().await?
             .json::<Vec<String>>().await?)
     }
+
 
     pub async fn create(&self, namespace: &str, policies: &NamespacePolicies) -> Result<(), Box<dyn Error>> {
         let res = self.admin.put(format!("/admin/v2/namespaces/{}", namespace).as_str())?
@@ -33,11 +61,19 @@ impl PulsarAdminNamespaces {
         }
     }
 
+    pub async fn policies(&self, namespace: &str) -> Result<NamespacePolicies, Box<dyn Error>> {
+        let body = self.admin.get(format!("/admin/v2/namespaces/{}", namespace).as_str())?
+            .send().await?
+            .text().await?;
+        debug!("{}", body.as_str());
+        Ok(serde_json::from_str(body.as_str())?)
+    }
+
     pub async fn permissions(&self, namespace: &str) -> Result<HashMap<String, Vec<String>>, Box<dyn Error>> {
         let res = self.admin.get(format!("/admin/v2/namespaces/{}/permissions", namespace).as_str())?
             .send().await?;
         let body = res.text().await?;
-        info!("{}", body.as_str());
+        debug!("{}", body.as_str());
 
         Ok(serde_json::from_str::<HashMap<String, Vec<Option<String>>>>(body.as_str())?.into_iter()
             .map(|e| {
@@ -63,6 +99,27 @@ impl PulsarAdminNamespaces {
 
     pub async fn revoke_permission(&self, namespace: &str, role: &str) -> Result<(), Box<dyn Error>> {
         let res = self.admin.delete(format!("/admin/v2/namespaces/{}/permissions/{}", namespace, role).as_str())?
+            .send().await?;
+        if res.status().is_success() {
+            Ok(())
+        } else {
+            Err(Box::from(res.text().await?))
+        }
+    }
+
+    pub async fn update_persistence(&self, namespace: &str, persistence: &PersistencePolicies) -> Result<(), Box<dyn Error>> {
+        let res = self.admin.post(format!("/admin/v2/namespaces/{}/persistence", namespace).as_str())?
+            .json(persistence)
+            .send().await?;
+        if res.status().is_success() {
+            Ok(())
+        } else {
+            Err(Box::from(res.text().await?))
+        }
+    }
+
+    pub async fn remove_persistence(&self, namespace: &str) -> Result<(), Box<dyn Error>> {
+        let res = self.admin.delete(format!("/admin/v2/namespaces/{}/persistence", namespace).as_str())?
             .send().await?;
         if res.status().is_success() {
             Ok(())

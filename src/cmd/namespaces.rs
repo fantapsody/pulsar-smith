@@ -3,7 +3,7 @@ use std::error::Error;
 use clap::Clap;
 
 use crate::context::PulsarContext;
-use crate::admin::namespaces::NamespacePolicies;
+use crate::admin::namespaces::{NamespacePolicies, PersistencePolicies};
 
 #[derive(Clap, Debug, Clone)]
 pub struct NamespacesOpts {
@@ -16,9 +16,13 @@ impl NamespacesOpts {
         match &self.cmd {
             Command::List(opts) => opts.run(pulsar_ctx).await?,
             Command::Create(opts) => opts.run(pulsar_ctx).await?,
+            Command::Policies(opts) => opts.run(pulsar_ctx).await?,
             Command::Permissions(opts) => opts.run(pulsar_ctx).await?,
             Command::GrantPermission(opts) => opts.run(pulsar_ctx).await?,
             Command::RevokePermission(opts) => opts.run(pulsar_ctx).await?,
+            Command::GetPersistence(opts) => opts.run(pulsar_ctx).await?,
+            Command::SetPersistence(opts) => opts.run(pulsar_ctx).await?,
+            Command::RemovePersistence(opts) => opts.run(pulsar_ctx).await?,
         }
         Ok(())
     }
@@ -28,9 +32,13 @@ impl NamespacesOpts {
 pub enum Command {
     List(ListOpts),
     Create(CreateOpts),
+    Policies(PoliciesOpts),
     Permissions(PermissionsOpts),
     GrantPermission(GrantPermissionOpts),
     RevokePermission(RevokePermissionOpts),
+    GetPersistence(GetPersistenceOpts),
+    SetPersistence(SetPersistenceOpts),
+    RemovePersistence(RemovePersistenceOpts),
 }
 
 #[derive(Clap, Debug, Clone)]
@@ -51,7 +59,7 @@ impl ListOpts {
 
 #[derive(Clap, Debug, Clone)]
 pub struct CreateOpts {
-    tenant: String,
+    namespace: String,
 
     #[clap(short = 'b', long)]
     bundles: Option<u64>,
@@ -63,8 +71,9 @@ pub struct CreateOpts {
 impl From<&CreateOpts> for NamespacePolicies {
     fn from(opts: &CreateOpts) -> Self {
         NamespacePolicies{
-            bundles: opts.bundles.clone(),
-            clusters: None,
+            bundles: None,
+            replication_clusters: Some(opts.clusters.clone()),
+            ..Default::default()
         }
     }
 }
@@ -73,9 +82,25 @@ impl CreateOpts {
     pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
         let r = pulsar_ctx.admin().await?
             .namespaces()
-            .create(self.tenant.as_str(), &self.into())
+            .create(self.namespace.as_str(), &self.into())
             .await?;
         println!("{:?}", r);
+        Ok(())
+    }
+}
+
+#[derive(Clap, Debug, Clone)]
+pub struct PoliciesOpts {
+    namespace: String,
+}
+
+impl PoliciesOpts {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+        let r = pulsar_ctx.admin().await?
+            .namespaces()
+            .policies(self.namespace.as_str())
+            .await?;
+        println!("{}", serde_json::to_string(&r)?);
         Ok(())
     }
 }
@@ -133,6 +158,76 @@ impl RevokePermissionOpts {
             .revoke_permission(self.namespace.as_str(), self.role.as_str())
             .await?;
         println!("{:?}", r);
+        Ok(())
+    }
+}
+
+#[derive(Clap, Debug, Clone)]
+pub struct GetPersistenceOpts {
+    namespace: String,
+}
+
+impl GetPersistenceOpts {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+        let r = pulsar_ctx.admin().await?
+            .namespaces()
+            .policies(self.namespace.as_str())
+            .await?
+            .persistence;
+        println!("{}", serde_json::to_string(&r)?);
+        Ok(())
+    }
+}
+
+#[derive(Clap, Debug, Clone)]
+pub struct SetPersistenceOpts {
+    namespace: String,
+
+    #[clap(short = 'a', long, default_value = "0")]
+    bookkeeper_ack_quorum: i32,
+
+    #[clap(short = 'w', long, default_value = "0")]
+    bookkeeper_write_quorum: i32,
+
+    #[clap(short = 'e', long, default_value = "0")]
+    bookkeeper_ensemble: i32,
+
+    #[clap(short = 'r', long, default_value = "0")]
+    managed_ledger_max_mark_delete_rate: f64,
+}
+
+impl From<&SetPersistenceOpts> for PersistencePolicies {
+    fn from(opts: &SetPersistenceOpts) -> Self {
+        PersistencePolicies{
+            bookkeeper_ensemble: opts.bookkeeper_ensemble,
+            bookkeeper_write_quorum: opts.bookkeeper_write_quorum,
+            bookkeeper_ack_quorum: opts.bookkeeper_ack_quorum,
+            managed_ledger_max_mark_delete_rate: opts.managed_ledger_max_mark_delete_rate,
+        }
+    }
+}
+
+impl SetPersistenceOpts {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+        pulsar_ctx.admin().await?
+            .namespaces()
+            .update_persistence(self.namespace.as_str(), &self.into())
+            .await?;
+        Ok(())
+    }
+}
+
+#[derive(Clap, Debug, Clone)]
+pub struct RemovePersistenceOpts {
+    namespace: String,
+}
+
+impl RemovePersistenceOpts {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+        pulsar_ctx.admin().await?
+            .namespaces()
+            .remove_persistence(self.namespace.as_str())
+            .await?;
         Ok(())
     }
 }
