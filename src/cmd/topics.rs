@@ -15,6 +15,7 @@ impl TopicsOpts {
     pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
         match &self.cmd {
             Command::List(opts) => opts.run(pulsar_ctx).await?,
+            Command::Create(opts) => opts.run(pulsar_ctx).await?,
             Command::Lookup(opts) => opts.run(pulsar_ctx).await?,
             Command::Stats(opts) => opts.run(pulsar_ctx).await?,
             Command::Permissions(opts) => opts.run(pulsar_ctx).await?,
@@ -28,6 +29,7 @@ impl TopicsOpts {
 #[derive(Clap, Debug, Clone)]
 pub enum Command {
     List(ListOpts),
+    Create(CreateTopicOpts),
     Lookup(LookupOpts),
     Stats(StatsOpts),
     Permissions(PermissionsOpts),
@@ -51,6 +53,34 @@ impl ListOpts {
             .await?;
         println!("{:?}", r);
         Ok(())
+    }
+}
+
+#[derive(Clap, Debug, Clone)]
+pub struct CreateTopicOpts {
+    pub topic: String,
+
+    #[clap(short = 'p', long, default_value = "0")]
+    pub partitions: i32,
+}
+
+impl CreateTopicOpts {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+        if self.partitions == 0 {
+            pulsar_ctx.admin().await?
+                .topics()
+                .create_non_partitioned_topic(self.topic.as_str())
+                .await?;
+            Ok(())
+        } else if self.partitions > 0 {
+            pulsar_ctx.admin().await?
+                .topics()
+                .create_partitioned_topic(self.topic.as_str(), self.partitions)
+                .await?;
+            Ok(())
+        } else {
+            Err(Box::from(format!("invalid partitions [{}]", self.partitions)))
+        }
     }
 }
 

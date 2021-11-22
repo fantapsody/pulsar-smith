@@ -4,6 +4,7 @@ use std::error::Error;
 use serde::{Deserialize, Serialize};
 
 use crate::admin::admin::PulsarAdmin;
+use reqwest::header::{CONTENT_TYPE, HeaderValue};
 
 pub struct PulsarAdminTopics {
     pub(crate) admin: PulsarAdmin,
@@ -143,6 +144,33 @@ impl PulsarAdminTopics {
         } else {
             resp.error_for_status()?;
             Ok(())
+        }
+    }
+
+    pub async fn create_non_partitioned_topic(&self, topic: &str) -> Result<(), Box<dyn Error>> {
+        let canonical_topic = topic.replace("://", "/");
+        let resp = self.admin
+            .put(format!("/admin/v2/{}", canonical_topic).as_str())?
+            .header(CONTENT_TYPE, HeaderValue::from_static("application/json"))
+            .send().await?;
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            Err(Box::from(resp.text().await?))
+        }
+    }
+
+    pub async fn create_partitioned_topic(&self, topic: &str, num_partitions: i32) -> Result<(), Box<dyn Error>> {
+        let canonical_topic = topic.replace("://", "/");
+        let resp = self.admin
+            .put(format!("/admin/v2/{}/partitions", canonical_topic).as_str())?
+            .header(CONTENT_TYPE, HeaderValue::from_static("application/json"))
+            .body(num_partitions.to_string())
+            .send().await?;
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            Err(Box::from(resp.text().await?))
         }
     }
 }
