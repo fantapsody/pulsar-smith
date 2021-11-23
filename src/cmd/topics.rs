@@ -17,6 +17,7 @@ impl TopicsOpts {
             Command::List(opts) => opts.run(pulsar_ctx).await?,
             Command::Create(opts) => opts.run(pulsar_ctx).await?,
             Command::Delete(opts) => opts.run(pulsar_ctx).await?,
+            Command::DeletePartitionedTopic(opts) => opts.run(pulsar_ctx).await?,
             Command::Lookup(opts) => opts.run(pulsar_ctx).await?,
             Command::Stats(opts) => opts.run(pulsar_ctx).await?,
             Command::Permissions(opts) => opts.run(pulsar_ctx).await?,
@@ -32,6 +33,7 @@ pub enum Command {
     List(ListOpts),
     Create(CreateTopicOpts),
     Delete(DeleteTopicOpts),
+    DeletePartitionedTopic(DeletePartitionedTopicOpts),
     Lookup(LookupOpts),
     Stats(StatsOpts),
     Permissions(PermissionsOpts),
@@ -102,6 +104,27 @@ impl DeleteTopicOpts {
         pulsar_ctx.admin().await?
             .topics()
             .delete_topic(self.topic.as_str(), self.force, self.delete_schema)
+            .await?;
+        Ok(())
+    }
+}
+
+#[derive(Clap, Debug, Clone)]
+pub struct DeletePartitionedTopicOpts {
+    pub topic: String,
+
+    #[clap(short = 'f', long)]
+    pub force: bool,
+
+    #[clap(short = 'd', long)]
+    pub delete_schema: bool,
+}
+
+impl DeletePartitionedTopicOpts {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+        pulsar_ctx.admin().await?
+            .topics()
+            .delete_partitioned_topic(self.topic.as_str(), self.force, self.delete_schema)
             .await?;
         Ok(())
     }
