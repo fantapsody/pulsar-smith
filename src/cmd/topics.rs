@@ -16,6 +16,7 @@ impl TopicsOpts {
         match &self.cmd {
             Command::List(opts) => opts.run(pulsar_ctx).await?,
             Command::Create(opts) => opts.run(pulsar_ctx).await?,
+            Command::Delete(opts) => opts.run(pulsar_ctx).await?,
             Command::Lookup(opts) => opts.run(pulsar_ctx).await?,
             Command::Stats(opts) => opts.run(pulsar_ctx).await?,
             Command::Permissions(opts) => opts.run(pulsar_ctx).await?,
@@ -30,6 +31,7 @@ impl TopicsOpts {
 pub enum Command {
     List(ListOpts),
     Create(CreateTopicOpts),
+    Delete(DeleteTopicOpts),
     Lookup(LookupOpts),
     Stats(StatsOpts),
     Permissions(PermissionsOpts),
@@ -81,6 +83,27 @@ impl CreateTopicOpts {
         } else {
             Err(Box::from(format!("invalid partitions [{}]", self.partitions)))
         }
+    }
+}
+
+#[derive(Clap, Debug, Clone)]
+pub struct DeleteTopicOpts {
+    pub topic: String,
+
+    #[clap(short = 'f', long)]
+    pub force: bool,
+
+    #[clap(short = 'd', long)]
+    pub delete_schema: bool,
+}
+
+impl DeleteTopicOpts {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+        pulsar_ctx.admin().await?
+            .topics()
+            .delete_topic(self.topic.as_str(), self.force, self.delete_schema)
+            .await?;
+        Ok(())
     }
 }
 

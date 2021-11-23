@@ -173,4 +173,17 @@ impl PulsarAdminTopics {
             Err(Box::from(resp.text().await?))
         }
     }
+
+    pub async fn delete_topic(&self, topic: &str, force: bool, delete_schema: bool) -> Result<(), Box<dyn Error>> {
+        let canonical_topic = topic.replace("://", "/");
+        let resp = self.admin
+            .delete(format!("/admin/v2/{}", canonical_topic).as_str())?
+            .query(&[("force", force.to_string()), ("", delete_schema.to_string())])
+            .send().await?;
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            Err(Box::from(resp.text().await?))
+        }
+    }
 }
