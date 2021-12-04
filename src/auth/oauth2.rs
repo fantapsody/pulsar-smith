@@ -64,7 +64,10 @@ impl Authn for OAuth2Authn {
             .exchange_client_credentials()
             .add_extra_param("audience", self.params.audience.clone())
             .request_async(async_http_client).await {
-            Ok(token) => Ok(token.access_token().secret().clone()),
+            Ok(token) => {
+                info!("got a oauth2 token for {}", self.params.audience);
+                Ok(token.access_token().secret().clone())
+            },
             Err(e) => Err(Error::Custom(format!("{:?}", e))),
         }
     }

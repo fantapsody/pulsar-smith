@@ -7,3 +7,4 @@ pub mod namespaces;
 pub mod topics;
 pub mod auth;
 pub mod functions;
+pub mod sinks;

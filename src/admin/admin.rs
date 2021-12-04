@@ -6,6 +6,7 @@ use crate::admin::topics::PulsarAdminTopics;
 use crate::admin::clusters::PulsarAdminClusters;
 use crate::admin::error::Error;
 use crate::admin::functions::PulsarAdminFunctions;
+use crate::admin::sinks::PulsarAdminSinks;
 
 #[derive(Debug, Clone)]
 pub struct PulsarAdmin {
@@ -85,6 +86,12 @@ impl PulsarAdmin {
 
     pub fn functions(&self) -> PulsarAdminFunctions {
         PulsarAdminFunctions {
+            admin: self.clone(),
+        }
+    }
+
+    pub fn sinks(&self) -> PulsarAdminSinks {
+        PulsarAdminSinks {
             admin: self.clone(),
         }
     }

@@ -1,13 +1,15 @@
 use clap::Clap;
-use crate::cmd::produce::ProduceOpts;
-use crate::cmd::consume::ConsumeOpts;
-use crate::config::PulsarConfig;
-use crate::cmd::topics::TopicsOpts;
-use crate::cmd::tenants::TenantsOpts;
+
 use crate::cmd::auth::AuthOpts;
-use crate::cmd::namespaces::NamespacesOpts;
 use crate::cmd::clusters::ClustersOpts;
+use crate::cmd::consume::ConsumeOpts;
 use crate::cmd::functions::FunctionOpts;
+use crate::cmd::namespaces::NamespacesOpts;
+use crate::cmd::produce::ProduceOpts;
+use crate::cmd::sinks::SinksOpts;
+use crate::cmd::tenants::TenantsOpts;
+use crate::cmd::topics::TopicsOpts;
+use crate::config::PulsarConfig;
 
 #[derive(Clap, Debug, Clone)]
 #[clap(version = "1.0", author = "Yang Yang <yyang@streamnative.io>")]
@@ -59,6 +61,7 @@ pub enum Command {
     Topics(TopicsOpts),
     Auth(AuthOpts),
     Functions(FunctionOpts),
+    Sinks(SinksOpts),
 }
 
 pub fn parse_opts() -> PulsarOpts {
