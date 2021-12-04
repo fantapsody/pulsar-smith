@@ -38,7 +38,7 @@ pub struct ListOpts {}
 #[async_trait]
 impl AsyncCmd for ListOpts {
     async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        let r = pulsar_ctx.admin().await?
+        let r = pulsar_ctx.admin()
             .tenants()
             .list()
             .await?;
@@ -61,7 +61,7 @@ pub struct CreateOpts {
 #[async_trait]
 impl AsyncCmd for CreateOpts {
     async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        let r = pulsar_ctx.admin().await?
+        let r = pulsar_ctx.admin()
             .tenants()
             .create(self.tenant.as_str(), TenantInfo {
                 admin_roles: self.admin_roles.clone().unwrap_or(Vec::new()),
@@ -82,7 +82,7 @@ pub struct GetOpts {
 #[async_trait]
 impl AsyncCmd for GetOpts {
     async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        let r = pulsar_ctx.admin().await?
+        let r = pulsar_ctx.admin()
             .tenants()
             .get(self.tenant.as_str())
             .await?;
