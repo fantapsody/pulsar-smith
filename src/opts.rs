@@ -7,6 +7,7 @@ use crate::cmd::tenants::TenantsOpts;
 use crate::cmd::auth::AuthOpts;
 use crate::cmd::namespaces::NamespacesOpts;
 use crate::cmd::clusters::ClustersOpts;
+use crate::cmd::functions::FunctionOpts;
 
 #[derive(Clap, Debug, Clone)]
 #[clap(version = "1.0", author = "Yang Yang <yyang@streamnative.io>")]
@@ -57,6 +58,7 @@ pub enum Command {
     Namespaces(NamespacesOpts),
     Topics(TopicsOpts),
     Auth(AuthOpts),
+    Functions(FunctionOpts),
 }
 
 pub fn parse_opts() -> PulsarOpts {

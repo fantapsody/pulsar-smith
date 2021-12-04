@@ -43,6 +43,7 @@ async fn main() -> Result<(), Error> {
         Command::Namespaces(x) => x,
         Command::Topics(x) => x,
         Command::Auth(x) => x,
+        Command::Functions(x) => x,
     };
     cmd.run(&mut ctx).await?;
 
