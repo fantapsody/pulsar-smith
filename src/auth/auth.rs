@@ -4,7 +4,7 @@ use crate::auth::error::Error;
 use crate::auth::oauth2::OAuth2Authn;
 
 #[async_trait]
-pub trait Authn {
+pub trait Authn: Send + Sync + 'static {
     async fn get_token(&self) -> Result<String, Error>;
 }
 

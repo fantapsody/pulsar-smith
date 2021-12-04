@@ -1,9 +1,10 @@
-use crate::error::Error;
-
+use async_trait::async_trait;
 use clap::Clap;
 
-use crate::context::PulsarContext;
 use crate::admin::tenants::TenantInfo;
+use crate::cmd::cmd::AsyncCmd;
+use crate::context::PulsarContext;
+use crate::error::Error;
 
 #[derive(Clap, Debug, Clone)]
 pub struct TenantsOpts {
@@ -11,13 +12,15 @@ pub struct TenantsOpts {
     pub cmd: Command,
 }
 
-impl TenantsOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        match &self.cmd {
-            Command::List(opts) => opts.run(pulsar_ctx).await?,
-            Command::Create(opts) => opts.run(pulsar_ctx).await?,
-            Command::Get(opts) => opts.run(pulsar_ctx).await?,
-        }
+#[async_trait]
+impl AsyncCmd for TenantsOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+        let cmd: &dyn AsyncCmd = match &self.cmd {
+            Command::List(opts) => opts,
+            Command::Create(opts) => opts,
+            Command::Get(opts) => opts,
+        };
+        cmd.run(pulsar_ctx).await?;
         Ok(())
     }
 }
@@ -30,11 +33,11 @@ pub enum Command {
 }
 
 #[derive(Clap, Debug, Clone)]
-pub struct ListOpts {
-}
+pub struct ListOpts {}
 
-impl ListOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+#[async_trait]
+impl AsyncCmd for ListOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .tenants()
             .list()
@@ -55,11 +58,12 @@ pub struct CreateOpts {
     pub allowed_clusters: Option<Vec<String>>,
 }
 
-impl CreateOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+#[async_trait]
+impl AsyncCmd for CreateOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .tenants()
-            .create(self.tenant.as_str(), TenantInfo{
+            .create(self.tenant.as_str(), TenantInfo {
                 admin_roles: self.admin_roles.clone().unwrap_or(Vec::new()),
                 allowed_clusters: self.allowed_clusters.clone().unwrap_or(Vec::new()),
             })
@@ -75,8 +79,9 @@ pub struct GetOpts {
     pub tenant: String,
 }
 
-impl GetOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+#[async_trait]
+impl AsyncCmd for GetOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .tenants()
             .get(self.tenant.as_str())

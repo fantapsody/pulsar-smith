@@ -1,11 +1,10 @@
-use crate::error::Error;
-
+use async_trait::async_trait;
 use clap::Clap;
 
 use crate::admin::topics::TopicDomain;
-use crate::context::PulsarContext;
-use async_trait::async_trait;
 use crate::cmd::cmd::AsyncCmd;
+use crate::context::PulsarContext;
+use crate::error::Error;
 
 #[derive(Clap, Debug, Clone)]
 pub struct TopicsOpts {
@@ -13,19 +12,21 @@ pub struct TopicsOpts {
     pub cmd: Command,
 }
 
-impl TopicsOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        match &self.cmd {
-            Command::List(opts) => opts.run(pulsar_ctx).await?,
-            Command::Create(opts) => opts.run(pulsar_ctx).await?,
-            Command::Delete(opts) => opts.run(pulsar_ctx).await?,
-            Command::DeletePartitionedTopic(opts) => opts.run(pulsar_ctx).await?,
-            Command::Lookup(opts) => opts.run(pulsar_ctx).await?,
-            Command::Stats(opts) => opts.run(pulsar_ctx).await?,
-            Command::Permissions(opts) => opts.run(pulsar_ctx).await?,
-            Command::GrantPermissions(opts) => opts.run(pulsar_ctx).await?,
-            Command::RevokePermissions(opts) => opts.run(pulsar_ctx).await?,
-        }
+#[async_trait]
+impl AsyncCmd for TopicsOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+        let cmd: &dyn AsyncCmd = match &self.cmd {
+            Command::List(opts) => opts,
+            Command::Create(opts) => opts,
+            Command::Delete(opts) => opts,
+            Command::DeletePartitionedTopic(opts) => opts,
+            Command::Lookup(opts) => opts,
+            Command::Stats(opts) => opts,
+            Command::Permissions(opts) => opts,
+            Command::GrantPermissions(opts) => opts,
+            Command::RevokePermissions(opts) => opts,
+        };
+        cmd.run(pulsar_ctx).await?;
         Ok(())
     }
 }
@@ -51,8 +52,9 @@ pub struct ListOpts {
     pub domain: String,
 }
 
-impl ListOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+#[async_trait]
+impl AsyncCmd for ListOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .topics()
             .list(self.namespace.as_str(), TopicDomain::parse(self.domain.as_ref())?)
@@ -70,8 +72,9 @@ pub struct CreateTopicOpts {
     pub partitions: i32,
 }
 
-impl CreateTopicOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+#[async_trait]
+impl AsyncCmd for CreateTopicOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         if self.partitions == 0 {
             pulsar_ctx.admin().await?
                 .topics()
@@ -101,8 +104,9 @@ pub struct DeleteTopicOpts {
     pub delete_schema: bool,
 }
 
-impl DeleteTopicOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+#[async_trait]
+impl AsyncCmd for DeleteTopicOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         pulsar_ctx.admin().await?
             .topics()
             .delete_topic(self.topic.as_str(), self.force, self.delete_schema)
@@ -122,8 +126,9 @@ pub struct DeletePartitionedTopicOpts {
     pub delete_schema: bool,
 }
 
-impl DeletePartitionedTopicOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+#[async_trait]
+impl AsyncCmd for DeletePartitionedTopicOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         pulsar_ctx.admin().await?
             .topics()
             .delete_partitioned_topic(self.topic.as_str(), self.force, self.delete_schema)
@@ -137,8 +142,9 @@ pub struct LookupOpts {
     pub topic: String,
 }
 
-impl LookupOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+#[async_trait]
+impl AsyncCmd for LookupOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .topics()
             .lookup(self.topic.as_str())
@@ -159,8 +165,9 @@ pub struct StatsOpts {
     subscription_backlog_size: bool,
 }
 
-impl StatsOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+#[async_trait]
+impl AsyncCmd for StatsOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .topics()
             .stats(self.topic.as_str(), self.get_precise_backlog, self.subscription_backlog_size)
@@ -175,8 +182,9 @@ pub struct PermissionsOpts {
     pub topic: String,
 }
 
-impl PermissionsOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+#[async_trait]
+impl AsyncCmd for PermissionsOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .topics()
             .permissions(self.topic.as_str())
@@ -198,8 +206,9 @@ pub struct GrantPermissionsOpts {
     pub actions: Vec<String>,
 }
 
-impl GrantPermissionsOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+#[async_trait]
+impl AsyncCmd for GrantPermissionsOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         pulsar_ctx.admin().await?
             .topics()
             .grant_permissions(self.topic.as_str(), self.role.as_str(), &self.actions)
@@ -216,8 +225,9 @@ pub struct RevokePermissionsOpts {
     pub role: String,
 }
 
-impl RevokePermissionsOpts {
-    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), crate::error::Error> {
+#[async_trait]
+impl AsyncCmd for RevokePermissionsOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         pulsar_ctx.admin().await?
             .topics()
             .revoke_permissions(self.topic.as_str(), self.role.as_str())

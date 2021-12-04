@@ -1,8 +1,9 @@
-use crate::error::Error;
-
+use async_trait::async_trait;
 use clap::Clap;
 
+use crate::cmd::cmd::AsyncCmd;
 use crate::context::PulsarContext;
+use crate::error::Error;
 
 #[derive(Clap, Debug, Clone)]
 pub struct AuthOpts {
@@ -10,11 +11,13 @@ pub struct AuthOpts {
     pub cmd: Command,
 }
 
-impl AuthOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        match &self.cmd {
-            Command::GetToken(opts) => opts.run(pulsar_ctx).await?,
-        }
+#[async_trait]
+impl AsyncCmd for AuthOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+        let cmd: &dyn AsyncCmd = match &self.cmd {
+            Command::GetToken(opts) => opts,
+        };
+        cmd.run(pulsar_ctx).await?;
         Ok(())
     }
 }
@@ -27,8 +30,9 @@ pub enum Command {
 #[derive(Clap, Debug, Clone)]
 pub struct GetTokenOpts {}
 
-impl GetTokenOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+#[async_trait]
+impl AsyncCmd for GetTokenOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let token = pulsar_ctx.authn()?.get_token().await?;
         println!("{}", token);
         Ok(())

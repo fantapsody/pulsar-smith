@@ -1,10 +1,14 @@
-use crate::error::Error;
-use crate::context::PulsarContext;
-use clap::Clap;
 use std::io::stdin;
-use pulsar::ProducerOptions;
+
+use async_trait::async_trait;
+use clap::Clap;
 use pulsar::message::proto::CompressionType;
-use pulsar::message::proto::CompressionType::{Lz4, Zlib, Zstd, Snappy};
+use pulsar::message::proto::CompressionType::{Lz4, Snappy, Zlib, Zstd};
+use pulsar::ProducerOptions;
+
+use crate::cmd::cmd::AsyncCmd;
+use crate::context::PulsarContext;
+use crate::error::Error;
 
 #[derive(Clap, Debug, Clone)]
 pub struct ProduceOpts {
@@ -46,8 +50,11 @@ impl ProduceOpts {
             None => Ok(None),
         }
     }
+}
 
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+#[async_trait]
+impl AsyncCmd for ProduceOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let options = ProducerOptions {
             encrypted: None,
             metadata: Default::default(),

@@ -1,5 +1,4 @@
 use std::fmt::{Display, Formatter};
-use reqwest::Response;
 
 #[derive(Debug)]
 pub enum Error {

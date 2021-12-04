@@ -1,10 +1,14 @@
-use crate::error::Error;
-use crate::context::PulsarContext;
+use std::u64::MAX;
+
+use async_trait::async_trait;
 use clap::Clap;
 use futures::TryStreamExt;
 use pulsar::{Consumer, ConsumerOptions, SubType};
-use std::u64::MAX;
 use pulsar::consumer::InitialPosition;
+
+use crate::cmd::cmd::AsyncCmd;
+use crate::context::PulsarContext;
+use crate::error::Error;
 
 #[derive(Clap, Debug, Clone)]
 pub struct ConsumeOpts {
@@ -43,8 +47,11 @@ impl ConsumeOpts {
             _ => Err(Error::Custom(format!("illegal initial position [{}]", t))),
         }
     }
+}
 
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+#[async_trait]
+impl AsyncCmd for ConsumeOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let mut consumer: Consumer<String, _> = pulsar_ctx.client().await?
             .consumer()
             .with_topic(self.topic.clone())

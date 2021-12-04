@@ -1,6 +1,9 @@
+use async_trait::async_trait;
+use clap::Clap;
+
+use crate::cmd::cmd::AsyncCmd;
 use crate::context::PulsarContext;
 use crate::error::Error;
-use clap::Clap;
 
 #[derive(Clap, Debug, Clone)]
 pub struct ClustersOpts {
@@ -8,11 +11,13 @@ pub struct ClustersOpts {
     pub cmd: Command,
 }
 
-impl ClustersOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        match &self.cmd {
-            Command::List(opts) => opts.run(pulsar_ctx).await?,
-        }
+#[async_trait]
+impl AsyncCmd for ClustersOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+        let cmd: &dyn AsyncCmd = match &self.cmd {
+            Command::List(opts) => opts,
+        };
+        cmd.run(pulsar_ctx).await?;
         Ok(())
     }
 }
@@ -23,11 +28,11 @@ pub enum Command {
 }
 
 #[derive(Clap, Debug, Clone)]
-pub struct ListOpts {
-}
+pub struct ListOpts {}
 
-impl ListOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+#[async_trait]
+impl AsyncCmd for ListOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .clusters()
             .list()

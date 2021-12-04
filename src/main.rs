@@ -1,9 +1,9 @@
 #[macro_use]
 extern crate log;
 
-use crate::error::Error;
-
+use crate::cmd::cmd::AsyncCmd;
 use crate::config::Configs;
+use crate::error::Error;
 use crate::opts::{Command, parse_opts};
 
 mod opts;
@@ -35,15 +35,16 @@ async fn main() -> Result<(), Error> {
     };
 
     let mut ctx = cfg.into();
-    match opts.cmd {
-        Command::Produce(x) => x.run(&mut ctx).await?,
-        Command::Consume(x) => x.run(&mut ctx).await?,
-        Command::Clusters(x) => x.run(&mut ctx).await?,
-        Command::Tenants(x) => x.run(&mut ctx).await?,
-        Command::Namespaces(x) => x.run(&mut ctx).await?,
-        Command::Topics(x) => x.run(&mut ctx).await?,
-        Command::Auth(x) => x.run(&mut ctx).await?,
+    let cmd: &dyn AsyncCmd = match &opts.cmd {
+        Command::Produce(x) => x,
+        Command::Consume(x) => x,
+        Command::Clusters(x) => x,
+        Command::Tenants(x) => x,
+        Command::Namespaces(x) => x,
+        Command::Topics(x) => x,
+        Command::Auth(x) => x,
     };
+    cmd.run(&mut ctx).await?;
 
     Ok(())
 }

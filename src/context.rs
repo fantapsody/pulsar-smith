@@ -1,5 +1,5 @@
 use crate::error::Error;
-use std::sync::Mutex;
+use futures::lock::Mutex;
 
 use pulsar::{Authentication, Pulsar, TokioExecutor};
 
