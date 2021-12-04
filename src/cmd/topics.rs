@@ -1,9 +1,11 @@
-use std::error::Error;
+use crate::error::Error;
 
 use clap::Clap;
 
 use crate::admin::topics::TopicDomain;
 use crate::context::PulsarContext;
+use async_trait::async_trait;
+use crate::cmd::cmd::AsyncCmd;
 
 #[derive(Clap, Debug, Clone)]
 pub struct TopicsOpts {
@@ -12,7 +14,7 @@ pub struct TopicsOpts {
 }
 
 impl TopicsOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         match &self.cmd {
             Command::List(opts) => opts.run(pulsar_ctx).await?,
             Command::Create(opts) => opts.run(pulsar_ctx).await?,
@@ -50,7 +52,7 @@ pub struct ListOpts {
 }
 
 impl ListOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .topics()
             .list(self.namespace.as_str(), TopicDomain::parse(self.domain.as_ref())?)
@@ -69,7 +71,7 @@ pub struct CreateTopicOpts {
 }
 
 impl CreateTopicOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         if self.partitions == 0 {
             pulsar_ctx.admin().await?
                 .topics()
@@ -83,7 +85,7 @@ impl CreateTopicOpts {
                 .await?;
             Ok(())
         } else {
-            Err(Box::from(format!("invalid partitions [{}]", self.partitions)))
+            Err(Error::Custom(format!("invalid partitions [{}]", self.partitions)))
         }
     }
 }
@@ -100,7 +102,7 @@ pub struct DeleteTopicOpts {
 }
 
 impl DeleteTopicOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         pulsar_ctx.admin().await?
             .topics()
             .delete_topic(self.topic.as_str(), self.force, self.delete_schema)
@@ -121,7 +123,7 @@ pub struct DeletePartitionedTopicOpts {
 }
 
 impl DeletePartitionedTopicOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         pulsar_ctx.admin().await?
             .topics()
             .delete_partitioned_topic(self.topic.as_str(), self.force, self.delete_schema)
@@ -136,7 +138,7 @@ pub struct LookupOpts {
 }
 
 impl LookupOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .topics()
             .lookup(self.topic.as_str())
@@ -158,7 +160,7 @@ pub struct StatsOpts {
 }
 
 impl StatsOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .topics()
             .stats(self.topic.as_str(), self.get_precise_backlog, self.subscription_backlog_size)
@@ -174,7 +176,7 @@ pub struct PermissionsOpts {
 }
 
 impl PermissionsOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .topics()
             .permissions(self.topic.as_str())
@@ -197,7 +199,7 @@ pub struct GrantPermissionsOpts {
 }
 
 impl GrantPermissionsOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         pulsar_ctx.admin().await?
             .topics()
             .grant_permissions(self.topic.as_str(), self.role.as_str(), &self.actions)
@@ -215,7 +217,7 @@ pub struct RevokePermissionsOpts {
 }
 
 impl RevokePermissionsOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), crate::error::Error> {
         pulsar_ctx.admin().await?
             .topics()
             .revoke_permissions(self.topic.as_str(), self.role.as_str())

@@ -1,8 +1,9 @@
 use std::collections::HashMap;
-use std::error::Error;
-use serde::{Serialize, Deserialize};
+
+use serde::{Deserialize, Serialize};
 
 use crate::admin::admin::PulsarAdmin;
+use crate::admin::error::Error;
 
 pub struct PulsarAdminNamespaces {
     pub(crate) admin: PulsarAdmin,
@@ -39,29 +40,29 @@ pub struct PersistencePolicies {
     pub bookkeeper_ack_quorum: i32,
 
     #[serde(rename = "managedLedgerMaxMarkDeleteRate")]
-    pub managed_ledger_max_mark_delete_rate: f64
+    pub managed_ledger_max_mark_delete_rate: f64,
 }
 
 impl PulsarAdminNamespaces {
-    pub async fn list(&self, namespace: &str) -> Result<Vec<String>, Box<dyn Error>> {
+    pub async fn list(&self, namespace: &str) -> Result<Vec<String>, Error> {
         Ok(self.admin.get(format!("/admin/v2/namespaces/{}", namespace).as_str())?
             .send().await?
             .json::<Vec<String>>().await?)
     }
 
 
-    pub async fn create(&self, namespace: &str, policies: &NamespacePolicies) -> Result<(), Box<dyn Error>> {
+    pub async fn create(&self, namespace: &str, policies: &NamespacePolicies) -> Result<(), Error> {
         let res = self.admin.put(format!("/admin/v2/namespaces/{}", namespace).as_str())?
             .json(policies)
             .send().await?;
         if res.status().is_success() {
             Ok(())
         } else {
-            Err(Box::from(res.text().await?))
+            Err(res.text().await?.into())
         }
     }
 
-    pub async fn policies(&self, namespace: &str) -> Result<NamespacePolicies, Box<dyn Error>> {
+    pub async fn policies(&self, namespace: &str) -> Result<NamespacePolicies, Error> {
         let body = self.admin.get(format!("/admin/v2/namespaces/{}", namespace).as_str())?
             .send().await?
             .text().await?;
@@ -69,7 +70,7 @@ impl PulsarAdminNamespaces {
         Ok(serde_json::from_str(body.as_str())?)
     }
 
-    pub async fn permissions(&self, namespace: &str) -> Result<HashMap<String, Vec<String>>, Box<dyn Error>> {
+    pub async fn permissions(&self, namespace: &str) -> Result<HashMap<String, Vec<String>>, Error> {
         let res = self.admin.get(format!("/admin/v2/namespaces/{}/permissions", namespace).as_str())?
             .send().await?;
         let body = res.text().await?;
@@ -86,45 +87,45 @@ impl PulsarAdminNamespaces {
             .collect())
     }
 
-    pub async fn grant_permission(&self, namespace: &str, role: &str, permissions: &Vec<String>) -> Result<(), Box<dyn Error>> {
+    pub async fn grant_permission(&self, namespace: &str, role: &str, permissions: &Vec<String>) -> Result<(), Error> {
         let res = self.admin.post(format!("/admin/v2/namespaces/{}/permissions/{}", namespace, role).as_str())?
             .json(permissions)
             .send().await?;
         if res.status().is_success() {
             Ok(())
         } else {
-            Err(Box::from(res.text().await?))
+            Err(res.text().await?.into())
         }
     }
 
-    pub async fn revoke_permission(&self, namespace: &str, role: &str) -> Result<(), Box<dyn Error>> {
+    pub async fn revoke_permission(&self, namespace: &str, role: &str) -> Result<(), Error> {
         let res = self.admin.delete(format!("/admin/v2/namespaces/{}/permissions/{}", namespace, role).as_str())?
             .send().await?;
         if res.status().is_success() {
             Ok(())
         } else {
-            Err(Box::from(res.text().await?))
+            Err(res.text().await?.into())
         }
     }
 
-    pub async fn update_persistence(&self, namespace: &str, persistence: &PersistencePolicies) -> Result<(), Box<dyn Error>> {
+    pub async fn update_persistence(&self, namespace: &str, persistence: &PersistencePolicies) -> Result<(), Error> {
         let res = self.admin.post(format!("/admin/v2/namespaces/{}/persistence", namespace).as_str())?
             .json(persistence)
             .send().await?;
         if res.status().is_success() {
             Ok(())
         } else {
-            Err(Box::from(res.text().await?))
+            Err(res.text().await?.into())
         }
     }
 
-    pub async fn remove_persistence(&self, namespace: &str) -> Result<(), Box<dyn Error>> {
+    pub async fn remove_persistence(&self, namespace: &str) -> Result<(), Error> {
         let res = self.admin.delete(format!("/admin/v2/namespaces/{}/persistence", namespace).as_str())?
             .send().await?;
         if res.status().is_success() {
             Ok(())
         } else {
-            Err(Box::from(res.text().await?))
+            Err(res.text().await?.into())
         }
     }
 }

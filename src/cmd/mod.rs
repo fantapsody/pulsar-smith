@@ -1,3 +1,4 @@
+pub mod cmd;
 pub mod produce;
 pub mod consume;
 pub mod clusters;

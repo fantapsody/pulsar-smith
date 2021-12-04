@@ -1,11 +1,10 @@
-use std::error::Error;
-
 use reqwest::{Client, ClientBuilder, header, RequestBuilder};
 
 use crate::admin::namespaces::PulsarAdminNamespaces;
 use crate::admin::tenants::PulsarAdminTenants;
 use crate::admin::topics::PulsarAdminTopics;
 use crate::admin::clusters::PulsarAdminClusters;
+use crate::admin::error::Error;
 
 #[derive(Debug, Clone)]
 pub struct PulsarAdmin {
@@ -23,37 +22,37 @@ impl PulsarAdmin {
         }
     }
 
-    fn client_builder(&self) -> Result<ClientBuilder, Box<dyn Error>> {
+    fn client_builder(&self) -> Result<ClientBuilder, Error> {
         let mut builder = Client::builder();
         if self.auth_name.is_some() && self.auth_params.is_some() {
             if self.auth_name.as_ref().unwrap() == "token" {
                 let mut headers = header::HeaderMap::new();
-                headers.insert("Authorization", header::HeaderValue::from_str(format!("Bearer {}", self.auth_params.as_ref().unwrap()).as_str())?);
+                headers.insert("Authorization", header::HeaderValue::from_str(format!("Bearer {}", self.auth_params.as_ref().unwrap()).as_str()).unwrap());
                 builder = builder.default_headers(headers);
             }
         }
         Ok(builder)
     }
 
-    pub(crate) fn put(&self, p: &str) -> Result<RequestBuilder, Box<dyn Error>> {
+    pub(crate) fn put(&self, p: &str) -> Result<RequestBuilder, Error> {
         Ok(self.client_builder()?
             .build()?
             .put(self.service_url.clone() + p))
     }
 
-    pub(crate) fn get(&self, p: &str) -> Result<RequestBuilder, Box<dyn Error>> {
+    pub(crate) fn get(&self, p: &str) -> Result<RequestBuilder, Error> {
         Ok(self.client_builder()?
             .build()?
             .get(self.service_url.clone() + p))
     }
 
-    pub(crate) fn post(&self, p: &str) -> Result<RequestBuilder, Box<dyn Error>> {
+    pub(crate) fn post(&self, p: &str) -> Result<RequestBuilder, Error> {
         Ok(self.client_builder()?
             .build()?
             .post(self.service_url.clone() + p))
     }
 
-    pub(crate) fn delete(&self, p: &str) -> Result<RequestBuilder, Box<dyn Error>> {
+    pub(crate) fn delete(&self, p: &str) -> Result<RequestBuilder, Error> {
         Ok(self.client_builder()?
             .build()?
             .delete(self.service_url.clone() + p))

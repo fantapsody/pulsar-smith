@@ -1,4 +1,4 @@
-use std::error::Error;
+use crate::error::Error;
 use crate::context::PulsarContext;
 use clap::Clap;
 use std::io::stdin;
@@ -32,7 +32,7 @@ impl ProduceOpts {
         }
     }
 
-    fn parse_compression(&self) -> Result<Option<CompressionType>, Box<dyn Error>> {
+    fn parse_compression(&self) -> Result<Option<CompressionType>, Error> {
         match self.compression.as_ref() {
             Some(str) => {
                 match str.to_lowercase().as_str() {
@@ -40,14 +40,14 @@ impl ProduceOpts {
                     "zlib" => Ok(Some(Zlib)),
                     "zstd" => Ok(Some(Zstd)),
                     "snappy" => Ok(Some(Snappy)),
-                    _ => Err(Box::<dyn Error>::from(format!("illegal compression [{}]", str))),
+                    _ => Err(Error::Custom(format!("illegal compression [{}]", str))),
                 }
             }
             None => Ok(None),
         }
     }
 
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let options = ProducerOptions {
             encrypted: None,
             metadata: Default::default(),
@@ -55,7 +55,8 @@ impl ProduceOpts {
             batch_size: self.parse_batch_size(),
             compression: self.parse_compression()?,
         };
-        let mut producer = pulsar_ctx.client().await?.producer()
+        let mut producer = pulsar_ctx.client().await?
+            .producer()
             .with_topic(self.topic.clone())
             .with_name(self.name.as_ref().unwrap_or(&String::from("smith")).clone())
             .with_options(options)

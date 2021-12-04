@@ -1,4 +1,4 @@
-use std::error::Error;
+use crate::error::Error;
 
 use clap::Clap;
 
@@ -12,7 +12,7 @@ pub struct NamespacesOpts {
 }
 
 impl NamespacesOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         match &self.cmd {
             Command::List(opts) => opts.run(pulsar_ctx).await?,
             Command::Create(opts) => opts.run(pulsar_ctx).await?,
@@ -47,7 +47,7 @@ pub struct ListOpts {
 }
 
 impl ListOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .namespaces()
             .list(self.tenant.as_str())
@@ -79,7 +79,7 @@ impl From<&CreateOpts> for NamespacePolicies {
 }
 
 impl CreateOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .namespaces()
             .create(self.namespace.as_str(), &self.into())
@@ -95,7 +95,7 @@ pub struct PoliciesOpts {
 }
 
 impl PoliciesOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .namespaces()
             .policies(self.namespace.as_str())
@@ -111,7 +111,7 @@ pub struct PermissionsOpts {
 }
 
 impl PermissionsOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .namespaces()
             .permissions(self.namespace.as_str())
@@ -133,7 +133,7 @@ pub struct GrantPermissionOpts {
 }
 
 impl GrantPermissionOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .namespaces()
             .grant_permission(self.namespace.as_str(), self.role.as_str(), &self.actions)
@@ -152,7 +152,7 @@ pub struct RevokePermissionOpts {
 }
 
 impl RevokePermissionOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .namespaces()
             .revoke_permission(self.namespace.as_str(), self.role.as_str())
@@ -168,7 +168,7 @@ pub struct GetPersistenceOpts {
 }
 
 impl GetPersistenceOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .namespaces()
             .policies(self.namespace.as_str())
@@ -208,7 +208,7 @@ impl From<&SetPersistenceOpts> for PersistencePolicies {
 }
 
 impl SetPersistenceOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         pulsar_ctx.admin().await?
             .namespaces()
             .update_persistence(self.namespace.as_str(), &self.into())
@@ -223,7 +223,7 @@ pub struct RemovePersistenceOpts {
 }
 
 impl RemovePersistenceOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         pulsar_ctx.admin().await?
             .namespaces()
             .remove_persistence(self.namespace.as_str())

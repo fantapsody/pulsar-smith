@@ -1,5 +1,5 @@
 use crate::context::PulsarContext;
-use std::error::Error;
+use crate::error::Error;
 use clap::Clap;
 
 #[derive(Clap, Debug, Clone)]
@@ -9,7 +9,7 @@ pub struct ClustersOpts {
 }
 
 impl ClustersOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         match &self.cmd {
             Command::List(opts) => opts.run(pulsar_ctx).await?,
         }
@@ -27,7 +27,7 @@ pub struct ListOpts {
 }
 
 impl ListOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .clusters()
             .list()

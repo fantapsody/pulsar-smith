@@ -1,4 +1,4 @@
-use std::error::Error;
+use crate::error::Error;
 use std::fs;
 use serde::{Serialize, Deserialize};
 
@@ -20,7 +20,7 @@ impl PulsarConfig {
 }
 
 impl Configs {
-    pub fn load()-> Result<Configs, Box<dyn Error>> {
+    pub fn load()-> Result<Configs, Error> {
         #![allow(deprecated)]
         if let Some(home_dir) = std::env::home_dir() {
             let config_path = home_dir.join(CONFIG_PATH);
@@ -28,11 +28,11 @@ impl Configs {
             let cfg: Configs = serde_yaml::from_str(str.as_str())?;
             Ok(cfg)
         } else {
-            Err(Box::<dyn Error>::from(format!("cannot determine home dir")))
+            Err(Error::Custom(format!("cannot determine home dir")))
         }
     }
 
-    pub fn get_pulsar_config(&self, context_name: &str) -> Result<PulsarConfig, Box<dyn Error>> {
+    pub fn get_pulsar_config(&self, context_name: &str) -> Result<PulsarConfig, Error> {
         if let Some(context_item) = self.contexts.iter().find(|p| {p.name == context_name}) {
             if let Some(cluster_item) = self.clusters.iter().find(|p| {p.name == context_item.context.cluster}) {
                 if let Some(user_item) = self.users.iter().find(|p| p.name == context_item.context.user) {
@@ -46,13 +46,13 @@ impl Configs {
                         auth_params: user.auth_params.clone(),
                     })
                 } else {
-                    Err(Box::<dyn Error>::from(format!("context [{}] not exist", context_name)))
+                    Err(Error::Custom(format!("context [{}] not exist", context_name)))
                 }
             } else {
-                Err(Box::<dyn Error>::from(format!("context [{}] not exist", context_name)))
+                Err(Error::Custom(format!("context [{}] not exist", context_name)))
             }
         } else {
-            Err(Box::<dyn Error>::from(format!("context [{}] not exist", context_name)))
+            Err(Error::Custom(format!("context [{}] not exist", context_name)))
         }
     }
 
@@ -60,10 +60,10 @@ impl Configs {
         return self.current_context.is_some()
     }
 
-    pub fn get_current_pulsar_config(&self) -> Result<PulsarConfig, Box<dyn Error>> {
+    pub fn get_current_pulsar_config(&self) -> Result<PulsarConfig, Error> {
         match &self.current_context {
             Some(current) => self.get_pulsar_config(current.as_str()),
-            None => Err(Box::<dyn Error>::from("current context not set")),
+            None => Err(Error::Custom("current context not set".to_string())),
         }
     }
 }

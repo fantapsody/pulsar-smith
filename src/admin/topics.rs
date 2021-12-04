@@ -1,10 +1,10 @@
 use std::collections::HashMap;
-use std::error::Error;
 
+use reqwest::header::{CONTENT_TYPE, HeaderValue};
 use serde::{Deserialize, Serialize};
 
 use crate::admin::admin::PulsarAdmin;
-use reqwest::header::{CONTENT_TYPE, HeaderValue};
+use crate::admin::error::Error;
 
 pub struct PulsarAdminTopics {
     pub(crate) admin: PulsarAdmin,
@@ -26,11 +26,11 @@ impl ToString for TopicDomain {
 }
 
 impl TopicDomain {
-    pub fn parse(name: &str) -> Result<TopicDomain, Box<dyn Error>> {
+    pub fn parse(name: &str) -> Result<TopicDomain, Error> {
         match name.to_uppercase().replace("-", "_").as_str() {
             "PERSISTENT" => Ok(TopicDomain::Persistent),
             "NON_PERSISTENT" => Ok(TopicDomain::NonPersistent),
-            &_ => Err(Box::<dyn Error>::from(format!("invalid domain name [{}]", name)))
+            &_ => Err(format!("invalid domain name [{}]", name).into())
         }
     }
 }
@@ -85,13 +85,13 @@ pub struct TopicStats {
 }
 
 impl PulsarAdminTopics {
-    pub async fn list(&self, namespace: &str, domain: TopicDomain) -> Result<Vec<String>, Box<dyn Error>> {
+    pub async fn list(&self, namespace: &str, domain: TopicDomain) -> Result<Vec<String>, Error> {
         Ok(self.admin.get(format!("/admin/v2/{}/{}", domain.to_string(), namespace).as_str())?
             .send().await?
             .json::<Vec<String>>().await?)
     }
 
-    pub async fn lookup(&self, topic: &str) -> Result<LookupResponse, Box<dyn Error>> {
+    pub async fn lookup(&self, topic: &str) -> Result<LookupResponse, Error> {
         let canonical_topic = topic.replace("://", "/");
         let body = self.admin.get(format!("/lookup/v2/topic/{}", canonical_topic).as_str())?
             .send().await?
@@ -102,7 +102,7 @@ impl PulsarAdminTopics {
 
     pub async fn stats(&self, topic: &str,
                        get_precise_backlog: bool,
-                       subscription_backlog_size: bool) -> Result<TopicStats, Box<dyn Error>> {
+                       subscription_backlog_size: bool) -> Result<TopicStats, Error> {
         let canonical_topic = topic.replace("://", "/");
         let body = self.admin.get(format!("/admin/v2/{}/stats", canonical_topic).as_str())?
             .query(&[
@@ -115,14 +115,14 @@ impl PulsarAdminTopics {
         Ok(serde_json::from_str(body.as_str())?)
     }
 
-    pub async fn permissions(&self, topic: &str) -> Result<HashMap<String, Vec<Option<String>>>, Box<dyn Error>> {
+    pub async fn permissions(&self, topic: &str) -> Result<HashMap<String, Vec<Option<String>>>, Error> {
         let canonical_topic = topic.replace("://", "/");
         Ok(self.admin.get(format!("/admin/v2/{}/permissions", canonical_topic).as_str())?
             .send().await?
             .json().await?)
     }
 
-    pub async fn grant_permissions(&self, topic: &str, role: &str, permissions: &Vec<String>) -> Result<(), Box<dyn Error>> {
+    pub async fn grant_permissions(&self, topic: &str, role: &str, permissions: &Vec<String>) -> Result<(), Error> {
         let canonical_topic = topic.replace("://", "/");
         let resp = self.admin.post(format!("/admin/v2/{}/permissions/{}", canonical_topic, role).as_str())?
             .json(&permissions)
@@ -135,7 +135,7 @@ impl PulsarAdminTopics {
         }
     }
 
-    pub async fn revoke_permissions(&self, topic: &str, role: &str) -> Result<(), Box<dyn Error>> {
+    pub async fn revoke_permissions(&self, topic: &str, role: &str) -> Result<(), Error> {
         let canonical_topic = topic.replace("://", "/");
         let resp = self.admin.delete(format!("/admin/v2/{}/permissions/{}", canonical_topic, role).as_str())?
             .send().await?;
@@ -147,7 +147,7 @@ impl PulsarAdminTopics {
         }
     }
 
-    pub async fn create_non_partitioned_topic(&self, topic: &str) -> Result<(), Box<dyn Error>> {
+    pub async fn create_non_partitioned_topic(&self, topic: &str) -> Result<(), Error> {
         let canonical_topic = topic.replace("://", "/");
         let resp = self.admin
             .put(format!("/admin/v2/{}", canonical_topic).as_str())?
@@ -156,11 +156,11 @@ impl PulsarAdminTopics {
         if resp.status().is_success() {
             Ok(())
         } else {
-            Err(Box::from(resp.text().await?))
+            Err(resp.text().await?.into())
         }
     }
 
-    pub async fn create_partitioned_topic(&self, topic: &str, num_partitions: i32) -> Result<(), Box<dyn Error>> {
+    pub async fn create_partitioned_topic(&self, topic: &str, num_partitions: i32) -> Result<(), Error> {
         let canonical_topic = topic.replace("://", "/");
         let resp = self.admin
             .put(format!("/admin/v2/{}/partitions", canonical_topic).as_str())?
@@ -170,11 +170,11 @@ impl PulsarAdminTopics {
         if resp.status().is_success() {
             Ok(())
         } else {
-            Err(Box::from(resp.text().await?))
+            Err(resp.text().await?.into())
         }
     }
 
-    pub async fn delete_topic(&self, topic: &str, force: bool, delete_schema: bool) -> Result<(), Box<dyn Error>> {
+    pub async fn delete_topic(&self, topic: &str, force: bool, delete_schema: bool) -> Result<(), Error> {
         let canonical_topic = topic.replace("://", "/");
         let resp = self.admin
             .delete(format!("/admin/v2/{}", canonical_topic).as_str())?
@@ -183,11 +183,11 @@ impl PulsarAdminTopics {
         if resp.status().is_success() {
             Ok(())
         } else {
-            Err(Box::from(resp.text().await?))
+            Err(resp.text().await?.into())
         }
     }
 
-    pub async fn delete_partitioned_topic(&self, topic: &str, force: bool, delete_schema: bool) -> Result<(), Box<dyn Error>> {
+    pub async fn delete_partitioned_topic(&self, topic: &str, force: bool, delete_schema: bool) -> Result<(), Error> {
         let canonical_topic = topic.replace("://", "/");
         let resp = self.admin
             .delete(format!("/admin/v2/{}/partitions", canonical_topic).as_str())?
@@ -196,7 +196,7 @@ impl PulsarAdminTopics {
         if resp.status().is_success() {
             Ok(())
         } else {
-            Err(Box::from(resp.text().await?))
+            Err(resp.text().await?.into())
         }
     }
 }

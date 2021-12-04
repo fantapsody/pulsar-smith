@@ -1,4 +1,4 @@
-use std::error::Error;
+use crate::error::Error;
 
 use clap::Clap;
 
@@ -11,7 +11,7 @@ pub struct AuthOpts {
 }
 
 impl AuthOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         match &self.cmd {
             Command::GetToken(opts) => opts.run(pulsar_ctx).await?,
         }
@@ -28,7 +28,7 @@ pub enum Command {
 pub struct GetTokenOpts {}
 
 impl GetTokenOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let token = pulsar_ctx.authn()?.get_token().await?;
         println!("{}", token);
         Ok(())

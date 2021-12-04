@@ -1,4 +1,4 @@
-use std::error::Error;
+use crate::auth::error::Error;
 use std::fs;
 
 use async_trait::async_trait;
@@ -33,7 +33,7 @@ struct OAuth2PrivateParams {
 }
 
 impl OAuth2Authn {
-    pub(crate) fn create(auth_params: &str) -> Result<Box<dyn Authn>, Box<dyn Error>> {
+    pub(crate) fn create(auth_params: &str) -> Result<Box<dyn Authn>, Error> {
         Ok(Box::new(OAuth2Authn {
             params: serde_json::from_str(auth_params)?
         }))
@@ -41,7 +41,7 @@ impl OAuth2Authn {
 }
 
 impl OAuth2Authn {
-    fn read_private_params(&self) -> Result<OAuth2PrivateParams, Box<dyn Error>> {
+    fn read_private_params(&self) -> Result<OAuth2PrivateParams, Error> {
         let fn_name = self.params.private_key.strip_prefix("file://")
             .expect("key file should start with file://");
         Ok(serde_json::from_str(fs::read_to_string(fn_name)?.as_str())?)
@@ -50,7 +50,7 @@ impl OAuth2Authn {
 
 #[async_trait]
 impl Authn for OAuth2Authn {
-    async fn get_token(&self) -> Result<String, Box<dyn Error>> {
+    async fn get_token(&self) -> Result<String, Error> {
         let private_params = self.read_private_params()?;
         let client =
             BasicClient::new(
@@ -59,12 +59,13 @@ impl Authn for OAuth2Authn {
                 AuthUrl::new(private_params.issuer_url.clone())?,
                 Some(TokenUrl::new(private_params.issuer_url.clone() + "/oauth/token")?),
             );
-        let token = client
+        match client
             .set_auth_type(RequestBody)
             .exchange_client_credentials()
             .add_extra_param("audience", self.params.audience.clone())
-            .request_async(async_http_client).await?;
-
-        Ok(token.access_token().secret().clone())
+            .request_async(async_http_client).await {
+            Ok(token) => Ok(token.access_token().secret().clone()),
+            Err(e) => Err(Error::Custom(format!("{:?}", e))),
+        }
     }
 }

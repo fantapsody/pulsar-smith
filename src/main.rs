@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate log;
 
-use std::error::Error;
+use crate::error::Error;
 
 use crate::config::Configs;
 use crate::opts::{Command, parse_opts};
@@ -12,9 +12,10 @@ mod cmd;
 mod config;
 mod admin;
 mod auth;
+pub mod error;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> Result<(), Error> {
     env_logger::init();
 
     let opts = parse_opts();
@@ -29,7 +30,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         } else if configs.has_current_context() {
             configs.get_current_pulsar_config()?
         } else {
-            return Err(Box::<dyn Error>::from("no valid contexts"));
+            return Err(Error::Custom("no valid contexts".to_string()));
         }
     };
 

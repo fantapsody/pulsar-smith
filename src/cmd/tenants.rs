@@ -1,4 +1,4 @@
-use std::error::Error;
+use crate::error::Error;
 
 use clap::Clap;
 
@@ -12,7 +12,7 @@ pub struct TenantsOpts {
 }
 
 impl TenantsOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         match &self.cmd {
             Command::List(opts) => opts.run(pulsar_ctx).await?,
             Command::Create(opts) => opts.run(pulsar_ctx).await?,
@@ -34,7 +34,7 @@ pub struct ListOpts {
 }
 
 impl ListOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .tenants()
             .list()
@@ -56,7 +56,7 @@ pub struct CreateOpts {
 }
 
 impl CreateOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .tenants()
             .create(self.tenant.as_str(), TenantInfo{
@@ -76,7 +76,7 @@ pub struct GetOpts {
 }
 
 impl GetOpts {
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let r = pulsar_ctx.admin().await?
             .tenants()
             .get(self.tenant.as_str())

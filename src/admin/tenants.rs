@@ -1,8 +1,7 @@
-use std::error::Error;
-
 use serde::{Deserialize, Serialize};
 
 use crate::admin::admin::PulsarAdmin;
+use crate::admin::error::Error;
 
 pub struct PulsarAdminTenants {
     pub(crate) admin: PulsarAdmin,
@@ -18,7 +17,7 @@ pub struct TenantInfo {
 }
 
 impl PulsarAdminTenants {
-    pub async fn create(&self, tenant: &str, mut info: TenantInfo) -> Result<(), Box<dyn Error>> {
+    pub async fn create(&self, tenant: &str, mut info: TenantInfo) -> Result<(), Error> {
         if info.allowed_clusters.is_empty() {
             let clusters = self.admin.clusters().list().await?;
             if clusters.len() == 1 {
@@ -32,17 +31,17 @@ impl PulsarAdminTenants {
         if r.status().is_success() {
             Ok(())
         } else {
-            Err(Box::<dyn Error>::from(r.text().await?))
+            Err(r.text().await?.into())
         }
     }
 
-    pub async fn list(&self) -> Result<Vec<String>, Box<dyn Error>> {
+    pub async fn list(&self) -> Result<Vec<String>, Error> {
         Ok(self.admin.get("/admin/v2/tenants")?
             .send().await?
             .json::<Vec<String>>().await?)
     }
 
-    pub async fn get(&self, tenant: &str) -> Result<TenantInfo, Box<dyn Error>> {
+    pub async fn get(&self, tenant: &str) -> Result<TenantInfo, Error> {
         Ok(self.admin.get(format!("/admin/v2/tenants/{}", tenant).as_str())?
             .send().await?
             .json::<TenantInfo>().await?)

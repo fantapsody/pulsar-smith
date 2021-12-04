@@ -1,4 +1,4 @@
-use std::error::Error;
+use crate::error::Error;
 use crate::context::PulsarContext;
 use clap::Clap;
 use futures::TryStreamExt;
@@ -27,24 +27,24 @@ pub struct ConsumeOpts {
 }
 
 impl ConsumeOpts {
-    fn parse_sub_type(t: &str) -> Result<SubType, Box<dyn Error>> {
+    fn parse_sub_type(t: &str) -> Result<SubType, Error> {
         match t.to_lowercase().as_str() {
             "exclusive" => Ok(SubType::Exclusive),
             "shared" => Ok(SubType::Shared),
             "failover" => Ok(SubType::Failover),
-            _ => Err(Box::<dyn Error>::from(format!("illegal subscription type [{}]", t))),
+            _ => Err(Error::Custom(format!("illegal subscription type [{}]", t))),
         }
     }
 
-    fn parse_subscription_position(t: &str) -> Result<InitialPosition, Box<dyn Error>> {
+    fn parse_subscription_position(t: &str) -> Result<InitialPosition, Error> {
         match t.to_lowercase().as_str() {
             "earliest" => Ok(InitialPosition::Earliest),
             "latest" => Ok(InitialPosition::Latest),
-            _ => Err(Box::<dyn Error>::from(format!("illegal initial position [{}]", t))),
+            _ => Err(Error::Custom(format!("illegal initial position [{}]", t))),
         }
     }
 
-    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let mut consumer: Consumer<String, _> = pulsar_ctx.client().await?
             .consumer()
             .with_topic(self.topic.clone())
@@ -65,8 +65,8 @@ impl ConsumeOpts {
         let mut counter = 0u64;
         while let Some(msg) = consumer.try_next().await? {
             consumer.ack(&msg).await?;
-            debug!("got message, topic: [{}], metadata: [{:?}], data: [{:?}]", &msg.topic, &msg.payload.metadata, &msg.payload.data);
-            println!("{}", String::from_utf8(msg.payload.data)?);
+            debug!("got message, topic: [{}], metadata: [{:?}], data: [{:?}]", &msg.topic, &msg.payload, &msg.payload.data);
+            println!("{}", String::from_utf8(msg.payload.data).unwrap());
             counter += 1;
             if self.num.unwrap_or(MAX) <= counter {
                 break;

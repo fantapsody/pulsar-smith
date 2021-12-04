@@ -1,4 +1,4 @@
-use std::error::Error;
+use crate::error::Error;
 use std::sync::Mutex;
 
 use pulsar::{Authentication, Pulsar, TokioExecutor};
@@ -26,7 +26,7 @@ impl From<PulsarConfig> for PulsarContext {
 }
 
 impl PulsarContext {
-    pub async fn client(&mut self) -> Result<&Pulsar<TokioExecutor>, Box<dyn Error>> {
+    pub async fn client(&mut self) -> Result<&Pulsar<TokioExecutor>, Error> {
         let _guard = self.mutex.lock();
         if self.client.is_none() {
             let mut builder = Pulsar::builder(self.config.url.clone(), TokioExecutor);
@@ -43,14 +43,14 @@ impl PulsarContext {
         Ok(self.client.as_ref().unwrap())
     }
 
-    pub async fn admin(&mut self) -> Result<PulsarAdmin, Box<dyn Error>> {
+    pub async fn admin(&mut self) -> Result<PulsarAdmin, Error> {
         Ok(PulsarAdmin::new(self.config.admin_url.clone(),
                             self.config.auth_name.clone(),
                             self.config.auth_params.clone()))
     }
 
-    pub fn authn(&self) -> Result<Box<dyn Authn>, Box<dyn Error>> {
-        crate::auth::auth::create(self.config.auth_name.clone().expect("auth name is not provided"),
-                                  self.config.auth_params.clone().expect("auth params is not provided"))
+    pub fn authn(&self) -> Result<Box<dyn Authn>, Error> {
+        Ok(crate::auth::auth::create(self.config.auth_name.clone().expect("auth name is not provided"),
+                                  self.config.auth_params.clone().expect("auth params is not provided"))?)
     }
 }
