@@ -52,7 +52,7 @@ pub struct ListOpts {
 #[async_trait]
 impl AsyncCmd for ListOpts {
     async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        let r = pulsar_ctx.admin()
+        let r = pulsar_ctx.admin().await?
             .namespaces()
             .list(self.tenant.as_str())
             .await?;
@@ -85,7 +85,7 @@ impl From<&CreateOpts> for NamespacePolicies {
 #[async_trait]
 impl AsyncCmd for CreateOpts {
     async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        let r = pulsar_ctx.admin()
+        let r = pulsar_ctx.admin().await?
             .namespaces()
             .create(self.namespace.as_str(), &self.into())
             .await?;
@@ -102,7 +102,7 @@ pub struct PoliciesOpts {
 #[async_trait]
 impl AsyncCmd for PoliciesOpts {
     async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        let r = pulsar_ctx.admin()
+        let r = pulsar_ctx.admin().await?
             .namespaces()
             .policies(self.namespace.as_str())
             .await?;
@@ -119,7 +119,7 @@ pub struct PermissionsOpts {
 #[async_trait]
 impl AsyncCmd for PermissionsOpts {
     async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        let r = pulsar_ctx.admin()
+        let r = pulsar_ctx.admin().await?
             .namespaces()
             .permissions(self.namespace.as_str())
             .await?;
@@ -142,7 +142,7 @@ pub struct GrantPermissionOpts {
 #[async_trait]
 impl AsyncCmd for GrantPermissionOpts {
     async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        let r = pulsar_ctx.admin()
+        let r = pulsar_ctx.admin().await?
             .namespaces()
             .grant_permission(self.namespace.as_str(), self.role.as_str(), &self.actions)
             .await?;
@@ -162,7 +162,7 @@ pub struct RevokePermissionOpts {
 #[async_trait]
 impl AsyncCmd for RevokePermissionOpts {
     async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        let r = pulsar_ctx.admin()
+        let r = pulsar_ctx.admin().await?
             .namespaces()
             .revoke_permission(self.namespace.as_str(), self.role.as_str())
             .await?;
@@ -179,7 +179,7 @@ pub struct GetPersistenceOpts {
 #[async_trait]
 impl AsyncCmd for GetPersistenceOpts {
     async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        let r = pulsar_ctx.admin()
+        let r = pulsar_ctx.admin().await?
             .namespaces()
             .policies(self.namespace.as_str())
             .await?
@@ -220,7 +220,7 @@ impl From<&SetPersistenceOpts> for PersistencePolicies {
 #[async_trait]
 impl AsyncCmd for SetPersistenceOpts {
     async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        pulsar_ctx.admin()
+        pulsar_ctx.admin().await?
             .namespaces()
             .update_persistence(self.namespace.as_str(), &self.into())
             .await?;
@@ -236,7 +236,7 @@ pub struct RemovePersistenceOpts {
 #[async_trait]
 impl AsyncCmd for RemovePersistenceOpts {
     async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        pulsar_ctx.admin()
+        pulsar_ctx.admin().await?
             .namespaces()
             .remove_persistence(self.namespace.as_str())
             .await?;

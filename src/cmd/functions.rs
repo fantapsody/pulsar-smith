@@ -39,7 +39,7 @@ pub struct ListOpts {
 #[async_trait]
 impl AsyncCmd for ListOpts {
     async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        let r = pulsar_ctx.admin()
+        let r = pulsar_ctx.admin().await?
             .functions()
             .list(format!("{}/{}", self.tenant, self.namespace).as_str())
             .await?;

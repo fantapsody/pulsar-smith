@@ -5,6 +5,10 @@ use crate::auth::oauth2::OAuth2Authn;
 
 #[async_trait]
 pub trait Authn: Send + Sync + 'static {
+    fn auth_method_name(&self) -> String;
+
+    async fn initialize(&mut self) -> Result<(), Error>;
+
     async fn get_token(&self) -> Result<String, Error>;
 }
 
@@ -24,6 +28,14 @@ struct TokenAuthn {
 
 #[async_trait]
 impl Authn for TokenAuthn {
+    fn auth_method_name(&self) -> String {
+        "auth".to_string()
+    }
+
+    async fn initialize(&mut self) -> Result<(), Error> {
+        Ok(())
+    }
+
     async fn get_token(&self) -> Result<String, Error> {
         Ok(self.params.clone())
     }

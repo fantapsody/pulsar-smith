@@ -45,14 +45,21 @@ impl PulsarContext {
         Ok(self.client.as_ref().unwrap())
     }
 
-    pub fn admin(&mut self) -> &PulsarAdmin {
+    pub async fn admin(&mut self) -> Result<&PulsarAdmin, Error> {
         let _guard = self.mutex.lock();
         if self.admin.is_none() {
+            let (auth_name, auth_params) = if self.config.auth_name.is_none() {
+                (None, None)
+            } else {
+                let auth = crate::auth::auth::create(self.config.auth_name.as_ref().unwrap().clone(),
+                                                     self.config.auth_params.as_ref().unwrap().clone())?;
+                (Some("token".to_string()), Some(auth.get_token().await?))
+            };
             self.admin = Some(PulsarAdmin::new(self.config.admin_url.clone(),
-                                               self.config.auth_name.clone(),
-                                               self.config.auth_params.clone()))
+                                               auth_name,
+                                               auth_params));
         }
-        self.admin.as_ref().unwrap()
+        Ok(self.admin.as_ref().unwrap())
     }
 
     pub fn authn(&self) -> Result<Box<dyn Authn>, Error> {
