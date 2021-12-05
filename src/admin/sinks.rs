@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use crate::admin::admin::PulsarAdmin;
 use crate::admin::error::Error;
 
-pub struct PulsarAdminSinks {
-    pub(crate) admin: PulsarAdmin,
+pub struct PulsarAdminSinks<'a> {
+    pub(crate) admin: &'a PulsarAdmin,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -36,7 +36,7 @@ pub struct SinkDef {
     jar: String,
 }
 
-impl PulsarAdminSinks {
+impl<'a> PulsarAdminSinks<'a> {
     pub async fn list(&self, namespace: &str) -> Result<Vec<String>, Error> {
         Ok(self.admin.get(format!("/admin/v3/sinks/{}", namespace).as_str())?
             .send().await?

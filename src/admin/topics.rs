@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use crate::admin::admin::PulsarAdmin;
 use crate::admin::error::Error;
 
-pub struct PulsarAdminTopics {
-    pub(crate) admin: PulsarAdmin,
+pub struct PulsarAdminTopics<'a> {
+    pub(crate) admin: &'a PulsarAdmin,
 }
 
 pub enum TopicDomain {
@@ -84,7 +84,7 @@ pub struct TopicStats {
     waiting_publishers: i64,
 }
 
-impl PulsarAdminTopics {
+impl<'a> PulsarAdminTopics<'a> {
     pub async fn list(&self, namespace: &str, domain: TopicDomain) -> Result<Vec<String>, Error> {
         Ok(self.admin.get(format!("/admin/v2/{}/{}", domain.to_string(), namespace).as_str())?
             .send().await?

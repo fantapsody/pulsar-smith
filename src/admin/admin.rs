@@ -1,12 +1,12 @@
 use reqwest::{Client, ClientBuilder, header, RequestBuilder};
 
-use crate::admin::namespaces::PulsarAdminNamespaces;
-use crate::admin::tenants::PulsarAdminTenants;
-use crate::admin::topics::PulsarAdminTopics;
 use crate::admin::clusters::PulsarAdminClusters;
 use crate::admin::error::Error;
 use crate::admin::functions::PulsarAdminFunctions;
+use crate::admin::namespaces::PulsarAdminNamespaces;
 use crate::admin::sinks::PulsarAdminSinks;
+use crate::admin::tenants::PulsarAdminTenants;
+use crate::admin::topics::PulsarAdminTopics;
 
 #[derive(Debug, Clone)]
 pub struct PulsarAdmin {
@@ -62,37 +62,37 @@ impl PulsarAdmin {
 
     pub fn clusters(&self) -> PulsarAdminClusters {
         PulsarAdminClusters {
-            admin: self.clone(),
+            admin: self,
         }
     }
 
     pub fn tenants(&self) -> PulsarAdminTenants {
         PulsarAdminTenants {
-            admin: self.clone(),
+            admin: self,
         }
     }
 
     pub fn namespaces(&self) -> PulsarAdminNamespaces {
         PulsarAdminNamespaces {
-            admin: self.clone(),
+            admin: self,
         }
     }
 
     pub fn topics(&self) -> PulsarAdminTopics {
         PulsarAdminTopics {
-            admin: self.clone(),
+            admin: self,
         }
     }
 
     pub fn functions(&self) -> PulsarAdminFunctions {
         PulsarAdminFunctions {
-            admin: self.clone(),
+            admin: self,
         }
     }
 
     pub fn sinks(&self) -> PulsarAdminSinks {
         PulsarAdminSinks {
-            admin: self.clone(),
+            admin: self,
         }
     }
 }

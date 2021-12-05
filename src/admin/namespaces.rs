@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use crate::admin::admin::PulsarAdmin;
 use crate::admin::error::Error;
 
-pub struct PulsarAdminNamespaces {
-    pub(crate) admin: PulsarAdmin,
+pub struct PulsarAdminNamespaces<'a> {
+    pub(crate) admin: &'a PulsarAdmin,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -43,13 +43,12 @@ pub struct PersistencePolicies {
     pub managed_ledger_max_mark_delete_rate: f64,
 }
 
-impl PulsarAdminNamespaces {
+impl<'a> PulsarAdminNamespaces<'a> {
     pub async fn list(&self, namespace: &str) -> Result<Vec<String>, Error> {
         Ok(self.admin.get(format!("/admin/v2/namespaces/{}", namespace).as_str())?
             .send().await?
             .json::<Vec<String>>().await?)
     }
-
 
     pub async fn create(&self, namespace: &str, policies: &NamespacePolicies) -> Result<(), Error> {
         let res = self.admin.put(format!("/admin/v2/namespaces/{}", namespace).as_str())?

@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use crate::admin::admin::PulsarAdmin;
 use crate::admin::error::Error;
 
-pub struct PulsarAdminTenants {
-    pub(crate) admin: PulsarAdmin,
+pub struct PulsarAdminTenants<'a> {
+    pub(crate) admin: &'a PulsarAdmin,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -16,7 +16,7 @@ pub struct TenantInfo {
     pub allowed_clusters: Vec<String>,
 }
 
-impl PulsarAdminTenants {
+impl<'a> PulsarAdminTenants<'a> {
     pub async fn create(&self, tenant: &str, mut info: TenantInfo) -> Result<(), Error> {
         if info.allowed_clusters.is_empty() {
             let clusters = self.admin.clusters().list().await?;
