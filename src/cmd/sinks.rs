@@ -60,7 +60,7 @@ impl AsyncCmd for AvailableSinksOpts {
             .sinks()
             .builtin_sinks()
             .await?;
-        println!("{:?}", r);
+        println!("{}", serde_json::to_string(&r)?);
         Ok(())
     }
 }
