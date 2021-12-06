@@ -33,9 +33,12 @@ impl PulsarContext {
         if self.client.is_none() {
             let mut builder = Pulsar::builder(self.config.url.clone(), TokioExecutor);
             if let Some(auth_data) = self.config.auth_params.as_ref() {
+                let auth_name = "token";
+                let auth = crate::auth::auth::create(self.config.auth_name.as_ref().unwrap().clone(), auth_data.clone())?;
+                let auth_data = auth.get_token().await?;
                 builder = builder.with_auth(Authentication {
-                    name: self.config.auth_name.as_ref().unwrap_or(&String::from("token")).clone(),
-                    data: auth_data.clone().into_bytes(),
+                    name: auth_name.to_string(),
+                    data: auth_data.into_bytes(),
                 });
             }
             builder = builder.with_allow_insecure_connection(self.config.allow_insecure_connection);
