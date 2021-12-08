@@ -199,4 +199,26 @@ impl<'a> PulsarAdminTopics<'a> {
             Err(resp.text().await?.into())
         }
     }
+
+    pub async fn subscriptions(&self, topic: &str) -> Result<Vec<String>, Error> {
+        let canonical_topic = topic.replace("://", "/");
+        Ok(self.admin.get(format!("/admin/v2/{}/subscriptions", canonical_topic).as_str())?
+            .send().await?
+            .json().await?)
+    }
+
+    pub async fn unsubscribe(&self, topic: &str, subscription: &str, force: bool) -> Result<(), Error> {
+        let canonical_topic = topic.replace("://", "/");
+
+        let resp = self.admin.delete(format!("/admin/v2/{}/subscription/{}", canonical_topic,
+                                             urlencoding::encode(subscription)).as_str())?
+            .query(&[("force", force.to_string())])
+            .send().await?;
+
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            Err(resp.text().await?.into())
+        }
+    }
 }

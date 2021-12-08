@@ -25,6 +25,8 @@ impl AsyncCmd for TopicsOpts {
             Command::Permissions(opts) => opts,
             Command::GrantPermissions(opts) => opts,
             Command::RevokePermissions(opts) => opts,
+            Command::Subscriptions(opts) => opts,
+            Command::Unsubscribe(opts) => opts,
         };
         cmd.run(pulsar_ctx).await?;
         Ok(())
@@ -42,6 +44,8 @@ pub enum Command {
     Permissions(PermissionsOpts),
     GrantPermissions(GrantPermissionsOpts),
     RevokePermissions(RevokePermissionsOpts),
+    Subscriptions(SubscriptionsOpts),
+    Unsubscribe(UnsubscribeOpts),
 }
 
 #[derive(Clap, Debug, Clone)]
@@ -231,6 +235,45 @@ impl AsyncCmd for RevokePermissionsOpts {
         pulsar_ctx.admin().await?
             .topics()
             .revoke_permissions(self.topic.as_str(), self.role.as_str())
+            .await?;
+        Ok(())
+    }
+}
+
+#[derive(Clap, Debug, Clone)]
+pub struct SubscriptionsOpts {
+    pub topic: String,
+}
+
+#[async_trait]
+impl AsyncCmd for SubscriptionsOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+        let subscriptions = pulsar_ctx.admin().await?
+            .topics()
+            .subscriptions(self.topic.as_str())
+            .await?;
+        println!("{}", serde_json::to_string(&subscriptions)?);
+        Ok(())
+    }
+}
+
+#[derive(Clap, Debug, Clone)]
+pub struct UnsubscribeOpts {
+    pub topic: String,
+
+    #[clap(short = 's', long)]
+    pub subscription: String,
+
+    #[clap(short = 'f', long)]
+    pub force: bool,
+}
+
+#[async_trait]
+impl AsyncCmd for UnsubscribeOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+        pulsar_ctx.admin().await?
+            .topics()
+            .unsubscribe(self.topic.as_str(), self.subscription.as_str(), self.force)
             .await?;
         Ok(())
     }
