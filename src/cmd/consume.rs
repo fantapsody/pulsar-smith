@@ -4,11 +4,12 @@ use async_trait::async_trait;
 use clap::Clap;
 use futures::TryStreamExt;
 use pulsar::{Consumer, ConsumerOptions, SubType};
-use pulsar::consumer::InitialPosition;
+use pulsar::consumer::{InitialPosition, Message};
 
 use crate::cmd::cmd::AsyncCmd;
 use crate::context::PulsarContext;
 use crate::error::Error;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Clap, Debug, Clone)]
 pub struct ConsumeOpts {
@@ -72,8 +73,8 @@ impl AsyncCmd for ConsumeOpts {
         let mut counter = 0u64;
         while let Some(msg) = consumer.try_next().await? {
             consumer.ack(&msg).await?;
-            debug!("got message, topic: [{}], metadata: [{:?}], data: [{:?}]", &msg.topic, &msg.payload, &msg.payload.data);
-            println!("{}", String::from_utf8(msg.payload.data).unwrap());
+
+            self.print_msg(msg);
             counter += 1;
             if self.num.unwrap_or(MAX) <= counter {
                 break;
@@ -81,5 +82,17 @@ impl AsyncCmd for ConsumeOpts {
         }
 
         Ok(())
+    }
+}
+
+impl ConsumeOpts {
+    fn print_msg(&self, msg: Message<String>) {
+        trace!("got message, topic: [{}], metadata: [{:?}], data: [{:?}]", &msg.topic, &msg.payload, &msg.payload.data);
+        let latency_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() - msg.metadata().publish_time as u128;
+        println!("latency(ms):\n{}\nmsg:\n{}", latency_ms,
+                 String::from_utf8(msg.payload.data).unwrap());
     }
 }
