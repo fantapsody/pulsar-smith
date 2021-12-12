@@ -45,6 +45,7 @@ async fn main() -> Result<(), Error> {
         Command::Auth(x) => x,
         Command::Functions(x) => x,
         Command::Sinks(x) => x,
+        Command::Perf(x) => x,
     };
     cmd.run(&mut ctx).await?;
 

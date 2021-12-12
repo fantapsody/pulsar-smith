@@ -8,3 +8,5 @@ pub mod topics;
 pub mod auth;
 pub mod functions;
 pub mod sinks;
+pub mod perf;
+pub mod commons;

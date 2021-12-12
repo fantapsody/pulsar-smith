@@ -10,6 +10,7 @@ use crate::cmd::sinks::SinksOpts;
 use crate::cmd::tenants::TenantsOpts;
 use crate::cmd::topics::TopicsOpts;
 use crate::config::PulsarConfig;
+use crate::cmd::perf::PerfOpts;
 
 #[derive(Clap, Debug, Clone)]
 #[clap(version = "1.0", author = "Yang Yang <yyang@streamnative.io>")]
@@ -62,6 +63,7 @@ pub enum Command {
     Auth(AuthOpts),
     Functions(FunctionOpts),
     Sinks(SinksOpts),
+    Perf(PerfOpts),
 }
 
 pub fn parse_opts() -> PulsarOpts {
