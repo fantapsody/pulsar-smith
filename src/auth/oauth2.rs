@@ -5,6 +5,7 @@ use oauth2::{AuthUrl, ClientId, ClientSecret, TokenResponse, TokenUrl};
 use oauth2::AuthType::RequestBody;
 use oauth2::basic::BasicClient;
 use oauth2::reqwest::async_http_client;
+use reqwest::Url;
 use serde::Deserialize;
 
 use crate::auth::auth::Authn;
@@ -58,12 +59,17 @@ impl Authn for OAuth2Authn {
 
     async fn get_token(&self) -> Result<String, Error> {
         let private_params = self.read_private_params()?;
+        let token_url = if private_params.issuer_url.ends_with("/") {
+            private_params.issuer_url.clone() + "oauth/token"
+        } else {
+            private_params.issuer_url.clone() + "/oauth/token"
+        };
         let client =
             BasicClient::new(
                 ClientId::new(private_params.client_id.clone()),
                 Some(ClientSecret::new(private_params.client_secret.clone())),
                 AuthUrl::new(private_params.issuer_url.clone())?,
-                Some(TokenUrl::new(private_params.issuer_url.clone() + "/oauth/token")?),
+                Some(TokenUrl::new(token_url)?),
             );
         match client
             .set_auth_type(RequestBody)

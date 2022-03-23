@@ -9,7 +9,8 @@ use pulsar::consumer::{InitialPosition, Message};
 use crate::cmd::cmd::AsyncCmd;
 use crate::context::PulsarContext;
 use crate::error::Error;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use chrono::TimeZone;
 
 #[derive(Clap, Debug, Clone)]
 pub struct ConsumeOpts {
@@ -92,7 +93,10 @@ impl ConsumeOpts {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis() - msg.metadata().publish_time as u128;
-        println!("latency(ms):\n{}\nmsg:\n{}", latency_ms,
-                 String::from_utf8(msg.payload.data).unwrap());
+        println!("latency(ms): {}", latency_ms);
+        if let Some(time) = msg.metadata().event_time {
+            println!("event time(ms): {}", chrono::Utc.timestamp_millis(time as i64).to_rfc3339());
+        }
+        println!("msg:\n{}", String::from_utf8(msg.payload.data).unwrap());
     }
 }

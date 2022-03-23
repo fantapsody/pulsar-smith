@@ -117,3 +117,24 @@ pub struct Context {
     cluster: String,
     user: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::config::{Context, User};
+    use serde::{Serialize, Deserialize};
+
+    #[derive(Serialize, Deserialize)]
+    enum Test {
+        Context(Context),
+        User(User),
+    }
+
+    #[test]
+    fn serialize() {
+        let str = serde_json::to_string(&Test::User(User{
+            auth_name: Some("test".to_string()),
+            auth_params: Some("params".to_string()),
+        })).unwrap();
+        println!("user [{}]", str);
+    }
+}

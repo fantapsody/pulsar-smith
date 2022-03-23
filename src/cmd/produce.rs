@@ -15,6 +15,9 @@ pub struct ProduceOpts {
 
     #[clap(short = 'm', long)]
     pub message: Option<String>,
+
+    #[clap(long)]
+    pub event_time: Option<u64>,
 }
 
 #[async_trait]
@@ -25,7 +28,12 @@ impl AsyncCmd for ProduceOpts {
             .await?;
 
         if let Some(msg) = &self.message {
-            let r = producer.send(msg).await?.await?;
+            let mut builder = producer.create_message()
+                .with_content(msg);
+            if let Some(event_time) = self.event_time {
+                builder = builder.event_time(event_time);
+            }
+            let r = builder.send().await?.await?;
             debug!("sent message: {:?}", r);
         } else {
             loop {
