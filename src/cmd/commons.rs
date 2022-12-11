@@ -55,6 +55,7 @@ impl ProducerOpts {
                 schema: None,
                 batch_size: self.parse_batch_size(),
                 compression: self.parse_compression()?,
+                access_mode: Some(1),
             });
         if let Some(name) = &self.name {
             builder = builder.with_name(name);

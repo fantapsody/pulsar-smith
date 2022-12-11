@@ -36,6 +36,9 @@ pub struct PulsarOpts {
     #[clap(long)]
     pub allow_insecure_connection: Option<bool>,
 
+    #[clap(long)]
+    pub tls_hostname_verification_enabled: Option<bool>,
+
     #[clap(subcommand)]
     pub cmd: Command,
 }
@@ -48,6 +51,7 @@ impl PulsarOpts {
             auth_name: self.auth_name.clone(),
             auth_params: self.auth_params.clone(),
             allow_insecure_connection: self.allow_insecure_connection.unwrap_or(false),
+            tls_hostname_verification_enabled: self.tls_hostname_verification_enabled.unwrap_or(true),
         }
     }
 }

@@ -53,7 +53,7 @@ pub struct LookupResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TopicStats {
-    count: i64,
+    count: Option<i64>,
     #[serde(rename = "msgRateIn")]
     msg_rate_in: f64,
     #[serde(rename = "msgRateOut")]
@@ -102,7 +102,7 @@ impl<'a> PulsarAdminTopics<'a> {
 
     pub async fn stats(&self, topic: &str,
                        get_precise_backlog: bool,
-                       subscription_backlog_size: bool) -> Result<TopicStats, Error> {
+                       subscription_backlog_size: bool) -> Result<serde_json::Value, Error> {
         let canonical_topic = topic.replace("://", "/");
         let body = self.admin.get(format!("/admin/v2/{}/stats", canonical_topic).as_str())?
             .query(&[

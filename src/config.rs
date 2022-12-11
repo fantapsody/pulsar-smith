@@ -14,6 +14,8 @@ pub struct PulsarConfig {
     pub auth_params: Option<String>,
 
     pub allow_insecure_connection: bool,
+
+    pub tls_hostname_verification_enabled: bool,
 }
 
 impl PulsarConfig {
@@ -42,6 +44,7 @@ impl Configs {
                         admin_url: cluster_item.cluster.admin_service_url.clone()
                             .expect(format!("admin-url not defined for cluster [{}]", cluster_item.name.as_str()).as_str()),
                         allow_insecure_connection: cluster_item.cluster.allow_insecure_connection,
+                        tls_hostname_verification_enabled: cluster_item.cluster.tls_hostname_verification_enabled,
                         auth_name: user.auth_name.clone(),
                         auth_params: user.auth_params.clone(),
                     })
@@ -90,6 +93,8 @@ pub struct Cluster {
     admin_service_url: Option<String>,
     #[serde(rename = "allow-insecure-connection", default)]
     allow_insecure_connection: bool,
+    #[serde(rename = "tls-hostname-verification-enabled", default)]
+    tls_hostname_verification_enabled: bool,
 }
 
 #[derive(Serialize, Deserialize)]

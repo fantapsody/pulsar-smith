@@ -42,6 +42,7 @@ impl PulsarContext {
                 });
             }
             builder = builder.with_allow_insecure_connection(self.config.allow_insecure_connection);
+            builder = builder.with_tls_hostname_verification_enabled(self.config.tls_hostname_verification_enabled);
             self.client = Some(Box::new(builder.build().await?));
             info!("created a new pulsar client");
         }
