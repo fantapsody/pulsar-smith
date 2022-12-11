@@ -122,7 +122,7 @@ impl<'a> PulsarAdminTopics<'a> {
             .json().await?)
     }
 
-    pub async fn grant_permissions(&self, topic: &str, role: &str, permissions: &Vec<String>) -> Result<(), Error> {
+    pub async fn grant_permissions(&self, topic: &str, role: &str, permissions: &[String]) -> Result<(), Error> {
         let canonical_topic = topic.replace("://", "/");
         let resp = self.admin.post(format!("/admin/v2/{}/permissions/{}", canonical_topic, role).as_str())?
             .json(&permissions)

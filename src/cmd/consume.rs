@@ -1,7 +1,5 @@
-use std::u64::MAX;
-
 use async_trait::async_trait;
-use clap::Clap;
+use clap::Parser;
 use futures::TryStreamExt;
 use pulsar::{Consumer, ConsumerOptions, SubType};
 use pulsar::consumer::{InitialPosition, Message};
@@ -12,23 +10,23 @@ use crate::error::Error;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use chrono::TimeZone;
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct ConsumeOpts {
     pub topic: String,
 
-    #[clap(long)]
+    #[arg(long)]
     pub name: Option<String>,
 
-    #[clap(short = 'n', long)]
+    #[arg(short = 'n', long)]
     pub num: Option<u64>,
 
-    #[clap(short = 't', long, default_value = "Exclusive")]
+    #[arg(short = 't', long, default_value = "Exclusive")]
     pub subscription_type: String,
 
-    #[clap(short = 's', long, default_value = "test")]
+    #[arg(short = 's', long, default_value = "test")]
     pub subscription_name: String,
 
-    #[clap(short = 'p', long, default_value = "Latest")]
+    #[arg(short = 'p', long, default_value = "Latest")]
     pub subscription_position: String,
 }
 
@@ -77,7 +75,7 @@ impl AsyncCmd for ConsumeOpts {
 
             self.print_msg(msg);
             counter += 1;
-            if self.num.unwrap_or(MAX) <= counter {
+            if self.num.unwrap_or(u64::MAX) <= counter {
                 break;
             }
         }

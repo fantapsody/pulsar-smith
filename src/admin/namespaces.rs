@@ -86,7 +86,7 @@ impl<'a> PulsarAdminNamespaces<'a> {
             .collect())
     }
 
-    pub async fn grant_permission(&self, namespace: &str, role: &str, permissions: &Vec<String>) -> Result<(), Error> {
+    pub async fn grant_permission(&self, namespace: &str, role: &str, permissions: &[String]) -> Result<(), Error> {
         let res = self.admin.post(format!("/admin/v2/namespaces/{}/permissions/{}", namespace, role).as_str())?
             .json(permissions)
             .send().await?;

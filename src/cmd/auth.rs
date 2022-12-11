@@ -1,13 +1,13 @@
 use async_trait::async_trait;
-use clap::Clap;
+use clap::Parser;
 
 use crate::cmd::cmd::AsyncCmd;
 use crate::context::PulsarContext;
 use crate::error::Error;
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct AuthOpts {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     pub cmd: Command,
 }
 
@@ -22,12 +22,12 @@ impl AsyncCmd for AuthOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub enum Command {
     GetToken(GetTokenOpts),
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct GetTokenOpts {}
 
 #[async_trait]

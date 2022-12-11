@@ -1,13 +1,13 @@
 use async_trait::async_trait;
-use clap::Clap;
+use clap::Parser;
 
 use crate::cmd::cmd::AsyncCmd;
 use crate::context::PulsarContext;
 use crate::error::Error;
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct SinksOpts {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     pub cmd: Command,
 }
 
@@ -23,18 +23,18 @@ impl AsyncCmd for SinksOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub enum Command {
     List(ListOpts),
     AvailableSinks(AvailableSinksOpts),
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct ListOpts {
-    #[clap(long)]
+    #[arg(long)]
     pub tenant: String,
 
-    #[clap(long)]
+    #[arg(long)]
     pub namespace: String,
 }
 
@@ -50,7 +50,7 @@ impl AsyncCmd for ListOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct AvailableSinksOpts {}
 
 #[async_trait]

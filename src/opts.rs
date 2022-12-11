@@ -1,4 +1,4 @@
-use clap::Clap;
+use clap::Parser;
 
 use crate::cmd::auth::AuthOpts;
 use crate::cmd::clusters::ClustersOpts;
@@ -12,34 +12,33 @@ use crate::cmd::topics::TopicsOpts;
 use crate::config::PulsarConfig;
 use crate::cmd::perf::PerfOpts;
 
-#[derive(Clap, Debug, Clone)]
-#[clap(version = "1.0", author = "Yang Yang <yyang@streamnative.io>")]
+#[derive(Parser, Debug, Clone)]
 pub struct PulsarOpts {
-    #[clap(long)]
+    #[arg(long)]
     pub context: Option<String>,
 
-    #[clap(long)]
+    #[arg(long)]
     pub url: Option<String>,
 
-    #[clap(long)]
+    #[arg(long)]
     pub admin_url: Option<String>,
 
-    #[clap(long)]
+    #[arg(long)]
     pub proxy_url: Option<String>,
 
-    #[clap(long)]
+    #[arg(long)]
     pub auth_name: Option<String>,
 
-    #[clap(long)]
+    #[arg(long)]
     pub auth_params: Option<String>,
 
-    #[clap(long)]
+    #[arg(long)]
     pub allow_insecure_connection: Option<bool>,
 
-    #[clap(long)]
+    #[arg(long)]
     pub tls_hostname_verification_enabled: Option<bool>,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     pub cmd: Command,
 }
 
@@ -56,7 +55,7 @@ impl PulsarOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub enum Command {
     Produce(ProduceOpts),
     Consume(ConsumeOpts),

@@ -3,22 +3,23 @@ use crate::error::Error;
 use pulsar::message::proto::CompressionType::{Lz4, Zlib, Zstd, Snappy};
 use pulsar::{ProducerOptions, TokioExecutor, Pulsar};
 use pulsar::producer::ProducerBuilder;
-use clap::Clap;
+use clap::Parser;
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
+#[command(version = "1.0", author = "Yang Yang <yyang@streamnative.io>")]
 pub struct ProducerOpts {
     pub topic: String,
 
-    #[clap(long)]
+    #[arg(long)]
     pub name: Option<String>,
 
-    #[clap(short = 'b', long, default_value = "0")]
+    #[arg(short = 'b', long, default_value = "0")]
     pub batch_size: i32,
 
-    #[clap(long)]
+    #[arg(long)]
     pub compression: Option<String>,
 
-    #[clap(long, default_value = "10")]
+    #[arg(long, default_value = "10")]
     pub batching_max_publish_latency_ms: u64,
 }
 

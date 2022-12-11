@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
-use clap::Clap;
+use clap::Parser;
 use pulsar::producer::SendFuture;
 use rand::Rng;
 use tokio::sync::oneshot::Sender;
@@ -12,13 +12,13 @@ use crate::cmd::commons::ProducerOpts;
 use crate::context::PulsarContext;
 use crate::error::Error;
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct PerfOpts {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     pub cmd: Command,
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub enum Command {
     Produce(PerfProduceOpts),
 }
@@ -34,21 +34,21 @@ impl AsyncCmd for PerfOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct PerfProduceOpts {
-    #[clap(flatten)]
+    #[command(flatten)]
     producer_opts: ProducerOpts,
 
-    #[clap(long)]
+    #[arg(long)]
     rate: Option<i32>,
 
-    #[clap(short = 'p', long, default_value = "1")]
+    #[arg(short = 'p', long, default_value = "1")]
     parallelism: i32,
 
-    #[clap(long, default_value = "1")]
+    #[arg(long, default_value = "1")]
     num_producers: i32,
 
-    #[clap(long, default_value = "1000")]
+    #[arg(long, default_value = "1000")]
     message_size: usize,
 }
 

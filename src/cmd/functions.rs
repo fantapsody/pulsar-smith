@@ -3,11 +3,11 @@ use async_trait::async_trait;
 use crate::error::Error;
 use crate::cmd::cmd::AsyncCmd;
 use crate::context::PulsarContext;
-use clap::Clap;
+use clap::Parser;
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct FunctionOpts {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     pub cmd: Command,
 }
 
@@ -22,17 +22,17 @@ impl AsyncCmd for FunctionOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub enum Command {
     List(ListOpts),
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct ListOpts {
-    #[clap(long)]
+    #[arg(long)]
     pub tenant: String,
 
-    #[clap(long)]
+    #[arg(long)]
     pub namespace: String,
 }
 

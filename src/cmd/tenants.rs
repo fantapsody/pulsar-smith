@@ -1,14 +1,14 @@
 use async_trait::async_trait;
-use clap::Clap;
+use clap::Parser;
 
 use crate::admin::tenants::TenantInfo;
 use crate::cmd::cmd::AsyncCmd;
 use crate::context::PulsarContext;
 use crate::error::Error;
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct TenantsOpts {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     pub cmd: Command,
 }
 
@@ -25,14 +25,14 @@ impl AsyncCmd for TenantsOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub enum Command {
     List(ListOpts),
     Create(CreateOpts),
     Get(GetOpts),
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct ListOpts {}
 
 #[async_trait]
@@ -47,14 +47,14 @@ impl AsyncCmd for ListOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct CreateOpts {
     pub tenant: String,
 
-    #[clap(short = 'r', long)]
+    #[arg(short = 'r', long)]
     pub admin_roles: Option<Vec<String>>,
 
-    #[clap(short = 'c', long)]
+    #[arg(short = 'c', long)]
     pub allowed_clusters: Option<Vec<String>>,
 }
 
@@ -74,7 +74,7 @@ impl AsyncCmd for CreateOpts {
 }
 
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct GetOpts {
     pub tenant: String,
 }

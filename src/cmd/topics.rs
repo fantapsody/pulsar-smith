@@ -1,14 +1,14 @@
 use async_trait::async_trait;
-use clap::Clap;
+use clap::Parser;
 
 use crate::admin::topics::TopicDomain;
 use crate::cmd::cmd::AsyncCmd;
 use crate::context::PulsarContext;
 use crate::error::Error;
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct TopicsOpts {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     pub cmd: Command,
 }
 
@@ -33,7 +33,7 @@ impl AsyncCmd for TopicsOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub enum Command {
     List(ListOpts),
     Create(CreateTopicOpts),
@@ -48,11 +48,11 @@ pub enum Command {
     Unsubscribe(UnsubscribeOpts),
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct ListOpts {
     pub namespace: String,
 
-    #[clap(short = 'd', long, default_value = "Persistent")]
+    #[arg(short = 'd', long, default_value = "Persistent")]
     pub domain: String,
 }
 
@@ -68,11 +68,11 @@ impl AsyncCmd for ListOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct CreateTopicOpts {
     pub topic: String,
 
-    #[clap(short = 'p', long, default_value = "0")]
+    #[arg(short = 'p', long, default_value = "0")]
     pub partitions: i32,
 }
 
@@ -97,14 +97,14 @@ impl AsyncCmd for CreateTopicOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct DeleteTopicOpts {
     pub topic: String,
 
-    #[clap(short = 'f', long)]
+    #[arg(short = 'f', long)]
     pub force: bool,
 
-    #[clap(short = 'd', long)]
+    #[arg(short = 'd', long)]
     pub delete_schema: bool,
 }
 
@@ -119,14 +119,14 @@ impl AsyncCmd for DeleteTopicOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct DeletePartitionedTopicOpts {
     pub topic: String,
 
-    #[clap(short = 'f', long)]
+    #[arg(short = 'f', long)]
     pub force: bool,
 
-    #[clap(short = 'd', long)]
+    #[arg(short = 'd', long)]
     pub delete_schema: bool,
 }
 
@@ -141,7 +141,7 @@ impl AsyncCmd for DeletePartitionedTopicOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct LookupOpts {
     pub topic: String,
 }
@@ -158,14 +158,14 @@ impl AsyncCmd for LookupOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct StatsOpts {
     pub topic: String,
 
-    #[clap(long)]
+    #[arg(long)]
     get_precise_backlog: bool,
 
-    #[clap(long)]
+    #[arg(long)]
     subscription_backlog_size: bool,
 }
 
@@ -181,7 +181,7 @@ impl AsyncCmd for StatsOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct PermissionsOpts {
     pub topic: String,
 }
@@ -199,14 +199,14 @@ impl AsyncCmd for PermissionsOpts {
 }
 
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct GrantPermissionsOpts {
     pub topic: String,
 
-    #[clap(long)]
+    #[arg(long)]
     pub role: String,
 
-    #[clap(long)]
+    #[arg(long)]
     pub actions: Vec<String>,
 }
 
@@ -221,11 +221,11 @@ impl AsyncCmd for GrantPermissionsOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct RevokePermissionsOpts {
     pub topic: String,
 
-    #[clap(long)]
+    #[arg(long)]
     pub role: String,
 }
 
@@ -240,7 +240,7 @@ impl AsyncCmd for RevokePermissionsOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct SubscriptionsOpts {
     pub topic: String,
 }
@@ -257,14 +257,14 @@ impl AsyncCmd for SubscriptionsOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct UnsubscribeOpts {
     pub topic: String,
 
-    #[clap(short = 's', long)]
+    #[arg(short = 's', long)]
     pub subscription: String,
 
-    #[clap(short = 'f', long)]
+    #[arg(short = 'f', long)]
     pub force: bool,
 }
 

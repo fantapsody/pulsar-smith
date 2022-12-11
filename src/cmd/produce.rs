@@ -1,22 +1,22 @@
 use std::io::stdin;
 
 use async_trait::async_trait;
-use clap::Clap;
+use clap::Parser;
 
 use crate::cmd::cmd::AsyncCmd;
 use crate::cmd::commons::ProducerOpts;
 use crate::context::PulsarContext;
 use crate::error::Error;
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct ProduceOpts {
-    #[clap(flatten)]
+    #[command(flatten)]
     pub producer_opts: ProducerOpts,
 
-    #[clap(short = 'm', long)]
+    #[arg(short = 'm', long)]
     pub message: Option<String>,
 
-    #[clap(long)]
+    #[arg(long)]
     pub event_time: Option<u64>,
 }
 

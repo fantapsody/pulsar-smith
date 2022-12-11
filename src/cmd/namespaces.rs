@@ -1,14 +1,14 @@
 use async_trait::async_trait;
-use clap::Clap;
+use clap::Parser;
 
 use crate::admin::namespaces::{NamespacePolicies, PersistencePolicies};
 use crate::cmd::cmd::AsyncCmd;
 use crate::context::PulsarContext;
 use crate::error::Error;
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct NamespacesOpts {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     pub cmd: Command,
 }
 
@@ -31,7 +31,7 @@ impl AsyncCmd for NamespacesOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub enum Command {
     List(ListOpts),
     Create(CreateOpts),
@@ -44,7 +44,7 @@ pub enum Command {
     RemovePersistence(RemovePersistenceOpts),
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct ListOpts {
     tenant: String,
 }
@@ -61,14 +61,14 @@ impl AsyncCmd for ListOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct CreateOpts {
     namespace: String,
 
-    #[clap(short = 'b', long)]
+    #[arg(short = 'b', long)]
     bundles: Option<u64>,
 
-    #[clap(short = 'c', long)]
+    #[arg(short = 'c', long)]
     clusters: Vec<String>,
 }
 
@@ -94,7 +94,7 @@ impl AsyncCmd for CreateOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct PoliciesOpts {
     namespace: String,
 }
@@ -111,7 +111,7 @@ impl AsyncCmd for PoliciesOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct PermissionsOpts {
     namespace: String,
 }
@@ -128,14 +128,14 @@ impl AsyncCmd for PermissionsOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct GrantPermissionOpts {
     namespace: String,
 
-    #[clap(long)]
+    #[arg(long)]
     role: String,
 
-    #[clap(long)]
+    #[arg(long)]
     actions: Vec<String>,
 }
 
@@ -151,11 +151,11 @@ impl AsyncCmd for GrantPermissionOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct RevokePermissionOpts {
     namespace: String,
 
-    #[clap(long)]
+    #[arg(long)]
     role: String,
 }
 
@@ -171,7 +171,7 @@ impl AsyncCmd for RevokePermissionOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct GetPersistenceOpts {
     namespace: String,
 }
@@ -189,20 +189,20 @@ impl AsyncCmd for GetPersistenceOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct SetPersistenceOpts {
     namespace: String,
 
-    #[clap(short = 'a', long, default_value = "0")]
+    #[arg(short = 'a', long, default_value = "0")]
     bookkeeper_ack_quorum: i32,
 
-    #[clap(short = 'w', long, default_value = "0")]
+    #[arg(short = 'w', long, default_value = "0")]
     bookkeeper_write_quorum: i32,
 
-    #[clap(short = 'e', long, default_value = "0")]
+    #[arg(short = 'e', long, default_value = "0")]
     bookkeeper_ensemble: i32,
 
-    #[clap(short = 'r', long, default_value = "0")]
+    #[arg(short = 'r', long, default_value = "0")]
     managed_ledger_max_mark_delete_rate: f64,
 }
 
@@ -228,7 +228,7 @@ impl AsyncCmd for SetPersistenceOpts {
     }
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct RemovePersistenceOpts {
     namespace: String,
 }
