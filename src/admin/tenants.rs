@@ -36,9 +36,13 @@ impl<'a> PulsarAdminTenants<'a> {
     }
 
     pub async fn list(&self) -> Result<Vec<String>, Error> {
-        Ok(self.admin.get("/admin/v2/tenants")?
-            .send().await?
-            .json::<Vec<String>>().await?)
+        let r = self.admin.get("/admin/v2/tenants")?
+            .send().await?;
+        if r.status().is_success() {
+            Ok(r.json::<Vec<String>>().await?)
+        } else {
+            Err(r.text().await?.into())
+        }
     }
 
     pub async fn get(&self, tenant: &str) -> Result<TenantInfo, Error> {
