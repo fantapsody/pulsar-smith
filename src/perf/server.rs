@@ -48,6 +48,11 @@ pub struct PerfOpts {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct DynamicConfig {
+    rate: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct DynamicConfigPatch {
     rate: Option<u32>,
 }
 
@@ -71,17 +76,18 @@ impl PerfServer {
         let (request_sender, request_receiver) = async_channel::bounded::<(ControlRequest, Sender<ControlResponse>)>(100);
         let (tick_sender, tick_receiver) = async_channel::bounded::<(Message, Sender<MessageReceipt>)>(100);
         let registry = Data::new(Mutex::new(Registry::default()));
+        let config = DynamicConfig {
+            rate: opts.rate.unwrap_or(0),
+        };
         Self {
             perf_job: None,
-            state: Arc::new(Mutex::new(PerfServerState{
-                config: DynamicConfig {
-                    rate: opts.rate.clone(),
-                },
+            state: Arc::new(Mutex::new(PerfServerState {
                 request_sender,
                 request_receiver,
                 tick_receiver,
                 registry: registry.clone(),
-                ticker: Ticker::new(tick_sender, opts.rate.unwrap_or(0), registry.clone()),
+                ticker: Ticker::new(tick_sender, registry.clone()),
+                config,
             })),
             opts,
         }
@@ -104,13 +110,11 @@ pub struct MessageReceipt {}
 
 #[derive(Debug)]
 enum ControlRequest {
-    UpdateConfig(DynamicConfig),
+    UpdateConfig(DynamicConfigPatch),
 }
 
 #[derive(Debug)]
-enum ControlResponse {
-
-}
+enum ControlResponse {}
 
 impl PerfServer {
     async fn start_perf(&mut self) -> Result<(), Box<dyn Error>> {
@@ -130,34 +134,33 @@ impl PerfServer {
         Ok(())
     }
 
-    async fn control_loop(state: Arc<Mutex<PerfServerState>>) -> Result<(), Box<dyn Error>>{
+    async fn control_loop(state: Arc<Mutex<PerfServerState>>) -> Result<(), Box<dyn Error>> {
         info!("Perf server controller started");
         let mut guard = state.lock().await;
         let receiver = guard.request_receiver.clone();
-        guard.ticker.start().await?;
         drop(guard);
 
         loop {
-            match receiver.recv().await {
-                Ok((request, resp_sender)) => {
-                    match request {
-                        ControlRequest::UpdateConfig(new_config) => {
-                            let mut guard = state.lock().await;
-                            guard.config.rate = new_config.rate;
-                        }
-                    }
-                }
-                Err(e) => {
-                    error!("Failed to receive control request [{}]", e);
-                    break
-                }
-            }
             match Self::reconcile_state(state.clone()).await {
                 Ok(_) => {}
                 Err(e) => {
                     error!("Failed to reconcile perf state: {}", e)
                 }
             };
+            match receiver.recv().await {
+                Ok((request, resp_sender)) => {
+                    match request {
+                        ControlRequest::UpdateConfig(new_config) => {
+                            let mut guard = state.lock().await;
+                            guard.config.rate = new_config.rate.unwrap_or(0);
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to receive control request [{}]", e);
+                    break;
+                }
+            }
         }
         info!("Perf server controller ended");
         Ok(())
@@ -165,8 +168,11 @@ impl PerfServer {
 
     async fn reconcile_state(state: Arc<Mutex<PerfServerState>>) -> Result<(), Box<dyn Error>> {
         let mut guard = state.lock().await;
-        let rate = guard.config.rate.unwrap_or(0);
+        let rate = guard.config.rate;
         guard.ticker.update_rate(rate);
+        if !guard.ticker.is_started().await {
+            guard.ticker.start().await?;
+        }
         Ok(())
     }
 
@@ -260,7 +266,7 @@ impl PerfServer {
                             error!("Failed to send message: {}", e)
                         }
                     }
-                    msg.1.send(MessageReceipt{}).unwrap();
+                    msg.1.send(MessageReceipt {}).unwrap();
                     producer_sent_counter_family.get_or_create(&vec![("producer".to_string(), name.to_string())]).inc();
                     continue;
                 }
@@ -292,7 +298,7 @@ async fn get_config(state: Data<Mutex<PerfServerState>>) -> HttpResponse {
 }
 
 #[patch("/config")]
-async fn patch_config(config_patch: web::Json<DynamicConfig>,
+async fn patch_config(config_patch: web::Json<DynamicConfigPatch>,
                       state: Data<Mutex<PerfServerState>>) -> HttpResponse {
     let state_guard = state.lock().await;
     let (resp_sender, resp_receiver) = tokio::sync::oneshot::channel();

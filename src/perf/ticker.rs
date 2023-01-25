@@ -24,19 +24,23 @@ pub(crate) struct Ticker {
 
 impl Ticker {
     pub(crate) fn new(sender: Sender<(Message, tokio::sync::oneshot::Sender<MessageReceipt>)>,
-                      rate: u32,
                       registry: Data<Mutex<Registry>>) -> Self {
         Self {
             mutex: Default::default(),
-            rate: Arc::new(AtomicU32::new(rate)),
+            rate: Arc::new(AtomicU32::new(0)),
             sender,
             registry,
             job: None,
         }
     }
 
+    pub async fn is_started(&self) -> bool {
+        let _guard = self.mutex.lock().await;
+        self.job.is_some()
+    }
+
     pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
-        let _guard = self.mutex.lock();
+        let _guard = self.mutex.lock().await;
         if self.job.is_some() {
             return Err(format!("The ticker is running").into());
         }
