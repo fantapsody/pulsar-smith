@@ -4,6 +4,7 @@ use serde::{Serialize, Deserialize};
 
 const CONFIG_PATH: &str = ".pulsar-smith/config";
 
+#[derive(Clone)]
 pub struct PulsarConfig {
     pub url: String,
 

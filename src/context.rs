@@ -28,6 +28,10 @@ impl From<PulsarConfig> for PulsarContext {
 }
 
 impl PulsarContext {
+    pub fn get_config(&self) -> &PulsarConfig {
+        &self.config
+    }
+
     pub async fn client(&mut self) -> Result<&Pulsar<TokioExecutor>, Error> {
         let _guard = self.mutex.lock();
         if self.client.is_none() {
@@ -47,6 +51,22 @@ impl PulsarContext {
             info!("created a new pulsar client");
         }
         Ok(self.client.as_ref().unwrap())
+    }
+
+    pub async fn new_client(&self) -> Result<Pulsar<TokioExecutor>, Box<dyn std::error::Error>> {
+        let mut builder = Pulsar::builder(self.config.url.clone(), TokioExecutor);
+        if let Some(auth_data) = self.config.auth_params.as_ref() {
+            let auth_name = "token";
+            let auth = crate::auth::auth::create(self.config.auth_name.as_ref().unwrap().clone(), auth_data.clone())?;
+            let auth_data = auth.get_token().await?;
+            builder = builder.with_auth(Authentication {
+                name: auth_name.to_string(),
+                data: auth_data.into_bytes(),
+            });
+        }
+        builder = builder.with_allow_insecure_connection(self.config.allow_insecure_connection);
+        builder = builder.with_tls_hostname_verification_enabled(self.config.tls_hostname_verification_enabled);
+        Ok(builder.build().await?)
     }
 
     pub async fn admin(&mut self) -> Result<&PulsarAdmin, Error> {

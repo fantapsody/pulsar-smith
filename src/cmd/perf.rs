@@ -1,11 +1,17 @@
 use std::time::Duration;
+use async_channel::SendError;
 
 use async_trait::async_trait;
 use clap::Parser;
+use futures::future::err;
+use prometheus_client::encoding::text::encode;
+use prometheus_client::metrics::counter::Counter;
+use prometheus_client::metrics::family::Family;
 use pulsar::producer::SendFuture;
 use rand::Rng;
 use tokio::sync::oneshot::Sender;
 use tokio::time::Instant;
+use prometheus_client::registry::Registry;
 
 use crate::cmd::cmd::AsyncCmd;
 use crate::cmd::commons::ProducerOpts;
@@ -39,14 +45,17 @@ pub struct PerfProduceOpts {
     #[command(flatten)]
     producer_opts: ProducerOpts,
 
-    #[arg(long)]
+    #[arg(long, default_value = "10")]
     rate: Option<i32>,
 
     #[arg(short = 'p', long, default_value = "1")]
     parallelism: i32,
 
     #[arg(long, default_value = "1")]
-    num_producers: i32,
+    num_clients: i32,
+
+    #[arg(long, default_value = "1")]
+    num_producers_per_client: i32,
 
     #[arg(long, default_value = "1000")]
     message_size: usize,
@@ -55,78 +64,24 @@ pub struct PerfProduceOpts {
 #[async_trait]
 impl AsyncCmd for PerfProduceOpts {
     async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        let client = pulsar_ctx.client().await?;
-        let (content_sender, content_receiver) = async_channel::bounded::<Vec<u8>>(10);
-        let (msg_sender, msg_receiver) = async_channel::bounded::<(Vec<u8>, Sender<SendFuture>)>(100);
-        let (tick_sender, _tick_receiver) = tokio::sync::broadcast::channel::<Instant>(1);
+        let opts = crate::perf::PerfOpts{
+            pulsar_config: pulsar_ctx.get_config().clone(),
+            producer_opts: self.producer_opts.clone(),
+            rate: self.rate,
+            parallelism: self.parallelism,
+            num_clients: self.num_clients,
+            num_producers_per_client: self.num_producers_per_client,
+            message_size: self.message_size,
+        };
+        let mut perf_server = crate::perf::PerfServer::new(opts);
 
-        for i in 0..self.parallelism {
-            let content_rx = content_receiver.clone();
-            let msg_tx = msg_sender.clone();
-            tokio::spawn(async move {
-                info!("Started sender {}", i);
-                while let Ok(content) = content_rx.recv().await {
-                    let (receipt_tx, receipt_rx) = tokio::sync::oneshot::channel();
-                    msg_tx.send((content, receipt_tx)).await.unwrap();
-                    receipt_rx.await.unwrap()
-                        .await.unwrap();
-                }
-            });
-        }
+        let mut registry = <Registry>::default();
 
-        for i in 0..self.num_producers {
-            let mut tick_rx = tick_sender.subscribe();
-            let msg_rx = msg_receiver.clone();
-            let mut builder = self.producer_opts.producer_builder(client)?;
-            if let Some(name) = &self.producer_opts.name {
-                builder = builder.with_name(format!("{}-{}", name, i));
-            }
-            let mut producer = builder
-                .build()
-                .await?;
-            tokio::spawn(async move {
-                info!("Started producer {}", i);
-                loop {
-                    tokio::select! {
-                        msg = msg_rx.recv() => {
-                            let (content, receipt_tx) = msg.unwrap();
-                            let produce_future = producer.create_message()
-                            .with_content(content)
-                            .send()
-                            .await.unwrap();
-                            if let Err(_) = receipt_tx.send(produce_future) {
-                                error!("failed to send receipt");
-                            }
-                        }
-                        _ = tick_rx.recv() => {
-                            trace!("Got tick to flush on producer [{}]", i);
-                            producer.send_batch().await.unwrap();
-                        }
-                    }
-                }
-            });
-        }
+        let tick_family = Family::<Vec<(String, String)>, Counter>::default();
+        registry.register("tick", "Number of ticks", tick_family.clone());
 
-        let batching_max_publish_latency_ms = self.producer_opts.batching_max_publish_latency_ms;
-        tokio::spawn(async move {
-            loop {
-                tokio::time::sleep(Duration::from_millis(batching_max_publish_latency_ms)).await;
-                tick_sender.send(Instant::now()).unwrap();
-            }
-        });
-
-        loop {
-            content_sender.send(self.generate_content()).await.unwrap();
-        }
+        perf_server.run().await?;
+        Ok(())
     }
 }
 
-impl PerfProduceOpts {
-    fn generate_content(&self) -> Vec<u8> {
-        let mut vec = Vec::with_capacity(self.message_size);
-        for _ in 0..self.message_size {
-            vec.push('a' as u8 + rand::thread_rng().gen_range(0..26));
-        }
-        vec
-    }
-}

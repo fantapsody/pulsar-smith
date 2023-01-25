@@ -12,6 +12,7 @@ mod cmd;
 mod config;
 mod admin;
 mod auth;
+mod perf;
 pub mod error;
 
 #[tokio::main]

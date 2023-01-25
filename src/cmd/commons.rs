@@ -24,7 +24,7 @@ pub struct ProducerOpts {
 }
 
 impl ProducerOpts {
-    fn parse_batch_size(&self) -> Option<u32> {
+    pub fn parse_batch_size(&self) -> Option<u32> {
         if self.batch_size <= 0 {
             None
         } else {
@@ -56,7 +56,7 @@ impl ProducerOpts {
                 schema: None,
                 batch_size: self.parse_batch_size(),
                 compression: self.parse_compression()?,
-                access_mode: Some(1),
+                access_mode: Some(0),
             });
         if let Some(name) = &self.name {
             builder = builder.with_name(name);
