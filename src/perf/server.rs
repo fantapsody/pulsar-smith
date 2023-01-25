@@ -5,9 +5,10 @@ use std::num::NonZeroU32;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::time::Duration;
-use actix_web::{get, App, HttpServer, Responder, web, HttpResponse};
+use actix_web::{get, patch, App, HttpServer, Responder, web, HttpResponse};
 use actix_web::web::{Data, resource};
 use async_channel::Receiver;
+use futures::future::err;
 use governor::{Quota, RateLimiter};
 use prometheus_client::encoding::text::encode;
 use prometheus_client::metrics::counter::Counter;
@@ -22,9 +23,11 @@ use tokio::sync::oneshot::error::RecvError;
 use tokio::sync::oneshot::Sender;
 use tokio::task::JoinHandle;
 use tokio::time::Instant;
+use serde::{Serialize, Deserialize};
 use crate::cmd::commons::ProducerOpts;
 use crate::config::PulsarConfig;
 use crate::context::PulsarContext;
+use crate::perf::ticker::Ticker;
 
 #[derive(Clone)]
 pub struct PerfOpts {
@@ -32,7 +35,7 @@ pub struct PerfOpts {
 
     pub producer_opts: ProducerOpts,
 
-    pub rate: Option<i32>,
+    pub rate: Option<u32>,
 
     pub parallelism: i32,
 
@@ -43,18 +46,44 @@ pub struct PerfOpts {
     pub message_size: usize,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct DynamicConfig {
+    rate: Option<u32>,
+}
+
 pub struct PerfServer {
     opts: PerfOpts,
-    registry: Data<Mutex<Registry>>,
     perf_job: Option<JoinHandle<()>>,
+    state: Arc<Mutex<PerfServerState>>,
+}
+
+pub struct PerfServerState {
+    config: DynamicConfig,
+    registry: Data<Mutex<Registry>>,
+    request_sender: async_channel::Sender<(ControlRequest, Sender<ControlResponse>)>,
+    request_receiver: Receiver<(ControlRequest, Sender<ControlResponse>)>,
+    tick_receiver: Receiver<(Message, Sender<MessageReceipt>)>,
+    ticker: Ticker,
 }
 
 impl PerfServer {
     pub fn new(opts: PerfOpts) -> Self {
-        PerfServer {
-            opts,
-            registry: Data::new(Mutex::new(Registry::default())),
+        let (request_sender, request_receiver) = async_channel::bounded::<(ControlRequest, Sender<ControlResponse>)>(100);
+        let (tick_sender, tick_receiver) = async_channel::bounded::<(Message, Sender<MessageReceipt>)>(100);
+        let registry = Data::new(Mutex::new(Registry::default()));
+        Self {
             perf_job: None,
+            state: Arc::new(Mutex::new(PerfServerState{
+                config: DynamicConfig {
+                    rate: opts.rate.clone(),
+                },
+                request_sender,
+                request_receiver,
+                tick_receiver,
+                registry: registry.clone(),
+                ticker: Ticker::new(tick_sender, opts.rate.unwrap_or(0), registry.clone()),
+            })),
+            opts,
         }
     }
 }
@@ -67,35 +96,85 @@ impl PerfServer {
     }
 }
 
-#[get("/metrics")]
-async fn metrics(registry: Data<Mutex<Registry>>) -> HttpResponse {
-    let mut buf = String::new();
-    let registry = registry.lock().await;
-    encode(&mut buf, &registry).unwrap();
-    HttpResponse::Ok()
-        .body(buf)
+#[derive(Debug)]
+pub struct Message {}
+
+#[derive(Debug)]
+pub struct MessageReceipt {}
+
+#[derive(Debug)]
+enum ControlRequest {
+    UpdateConfig(DynamicConfig),
 }
 
 #[derive(Debug)]
-struct Message {}
+enum ControlResponse {
 
-#[derive(Debug)]
-struct MessageReceipt {}
+}
 
 impl PerfServer {
     async fn start_perf(&mut self) -> Result<(), Box<dyn Error>> {
         let opts = self.opts.clone();
-        let registry = self.registry.clone();
+        let state = self.state.clone();
+        tokio::spawn(async move {
+            if let Err(e) = Self::control_loop(state).await {
+                error!("Failed to run the control loop: {}", e)
+            }
+        });
+        let state = self.state.clone();
         self.perf_job = Some(tokio::spawn(async move {
-            if let Err(err) = Self::run_perf(opts, registry).await {
+            if let Err(err) = Self::run_perf(opts, state).await {
                 error!("Failed to run perf {}", err);
             }
         }));
         Ok(())
     }
 
-    async fn run_perf(opts: PerfOpts, registry: Data<Mutex<Registry>>) -> Result<(), Box<dyn Error>> {
-        let (msg_sender, msg_receiver) = async_channel::bounded::<(Message, Sender<MessageReceipt>)>(100);
+    async fn control_loop(state: Arc<Mutex<PerfServerState>>) -> Result<(), Box<dyn Error>>{
+        info!("Perf server controller started");
+        let mut guard = state.lock().await;
+        let receiver = guard.request_receiver.clone();
+        guard.ticker.start().await?;
+        drop(guard);
+
+        loop {
+            match receiver.recv().await {
+                Ok((request, resp_sender)) => {
+                    match request {
+                        ControlRequest::UpdateConfig(new_config) => {
+                            let mut guard = state.lock().await;
+                            guard.config.rate = new_config.rate;
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to receive control request [{}]", e);
+                    break
+                }
+            }
+            match Self::reconcile_state(state.clone()).await {
+                Ok(_) => {}
+                Err(e) => {
+                    error!("Failed to reconcile perf state: {}", e)
+                }
+            };
+        }
+        info!("Perf server controller ended");
+        Ok(())
+    }
+
+    async fn reconcile_state(state: Arc<Mutex<PerfServerState>>) -> Result<(), Box<dyn Error>> {
+        let mut guard = state.lock().await;
+        let rate = guard.config.rate.unwrap_or(0);
+        guard.ticker.update_rate(rate);
+        Ok(())
+    }
+
+    async fn run_perf(opts: PerfOpts, state: Arc<Mutex<PerfServerState>>) -> Result<(), Box<dyn Error>> {
+        let mut state_guard = state.lock().await;
+        let msg_receiver = state_guard.tick_receiver.clone();
+        let registry = state_guard.registry.clone();
+        drop(state_guard);
 
         let producer_sent_counter_family = Family::<Vec<(String, String)>, Counter>::default();
 
@@ -122,35 +201,7 @@ impl PerfServer {
                 }
             });
         }
-        let mut msg_issued_counter: Counter = Counter::default();
-        let mut msg_sent_counter: Counter = Counter::default();
-        {
-            let mut registry_guard = registry.lock().await;
-            registry_guard.borrow_mut().register("msg_issued", "Message issued", msg_issued_counter.clone());
-            registry_guard.borrow_mut().register("msg_sent", "Message sent", msg_sent_counter.clone());
-        }
-        let rate_limiter = opts.rate.map(|rate| {
-            RateLimiter::direct(Quota::per_second(NonZeroU32::new(rate as u32).unwrap()))
-        });
-        loop {
-            if let Some(limiter) = &rate_limiter {
-                limiter.until_ready().await;
-            }
-            let (receipt_tx, receipt_rx) = tokio::sync::oneshot::channel();
-            msg_issued_counter.inc();
-
-            msg_sender.send((Message {}, receipt_tx)).await?;
-            let msg_sent_counter = msg_sent_counter.clone();
-            tokio::spawn(async move {
-                match receipt_rx.await {
-                    Ok(r) => {
-                        msg_sent_counter.inc();
-                        trace!("received send receipt: {:?}", r)
-                    }
-                    Err(e) => error!("receive send receipt error: {}", e)
-                };
-            });
-        }
+        Ok(())
     }
 
     fn generate_content(message_size: usize) -> Vec<u8> {
@@ -224,15 +275,47 @@ impl PerfServer {
     }
 }
 
+#[get("/metrics")]
+async fn metrics(registry: Data<Mutex<Registry>>) -> HttpResponse {
+    let mut buf = String::new();
+    let registry = registry.lock().await;
+    encode(&mut buf, &registry).unwrap();
+    HttpResponse::Ok()
+        .body(buf)
+}
+
+#[get("/config")]
+async fn get_config(state: Data<Mutex<PerfServerState>>) -> HttpResponse {
+    let state_guard = state.lock().await;
+    HttpResponse::Ok()
+        .json(&state_guard.config)
+}
+
+#[patch("/config")]
+async fn patch_config(config_patch: web::Json<DynamicConfig>,
+                      state: Data<Mutex<PerfServerState>>) -> HttpResponse {
+    let state_guard = state.lock().await;
+    let (resp_sender, resp_receiver) = tokio::sync::oneshot::channel();
+    state_guard.request_sender.send((ControlRequest::UpdateConfig(config_patch.0), resp_sender)).await.unwrap();
+    HttpResponse::Ok()
+        .json(&state_guard.config)
+}
+
 impl PerfServer {
     async fn run_http_server(&mut self) -> Result<(), Box<dyn Error>> {
-        let registry = self.registry.clone();
+        let state_guard = self.state.lock().await;
+        let registry = state_guard.registry.clone();
+        drop(state_guard);
+        let state = self.state.clone();
 
         let server = HttpServer::new(move ||
             {
                 App::new()
                     .app_data(registry.clone())
+                    .app_data(Data::from(state.clone()))
                     .service(metrics)
+                    .service(get_config)
+                    .service(patch_config)
             })
             .bind(("127.0.0.1", 8001))?
             .run();

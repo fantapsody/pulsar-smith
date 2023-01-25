@@ -46,7 +46,7 @@ pub struct PerfProduceOpts {
     producer_opts: ProducerOpts,
 
     #[arg(long, default_value = "10")]
-    rate: Option<i32>,
+    rate: Option<u32>,
 
     #[arg(short = 'p', long, default_value = "1")]
     parallelism: i32,
@@ -74,12 +74,6 @@ impl AsyncCmd for PerfProduceOpts {
             message_size: self.message_size,
         };
         let mut perf_server = crate::perf::PerfServer::new(opts);
-
-        let mut registry = <Registry>::default();
-
-        let tick_family = Family::<Vec<(String, String)>, Counter>::default();
-        registry.register("tick", "Number of ticks", tick_family.clone());
-
         perf_server.run().await?;
         Ok(())
     }
