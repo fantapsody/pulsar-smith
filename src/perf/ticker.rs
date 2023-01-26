@@ -16,7 +16,7 @@ use crate::perf::server::{Message, MessageReceipt};
 
 pub(crate) struct Ticker {
     sender: Sender<(Message, tokio::sync::oneshot::Sender<MessageReceipt>)>,
-    registry: Data<Mutex<Registry>>,
+    registry: Arc<Mutex<Registry>>,
     mutex: Mutex<()>,
     rate: Arc<AtomicU32>,
     job: Option<JoinHandle<()>>,
@@ -24,7 +24,7 @@ pub(crate) struct Ticker {
 
 impl Ticker {
     pub(crate) fn new(sender: Sender<(Message, tokio::sync::oneshot::Sender<MessageReceipt>)>,
-                      registry: Data<Mutex<Registry>>) -> Self {
+                      registry: Arc<Mutex<Registry>>) -> Self {
         Self {
             mutex: Default::default(),
             rate: Arc::new(AtomicU32::new(0)),
@@ -62,7 +62,7 @@ impl Ticker {
 
     async fn send_ticks(sender: Sender<(Message, tokio::sync::oneshot::Sender<MessageReceipt>)>,
                         rate: Arc<AtomicU32>,
-                        registry: Data<Mutex<Registry>>) {
+                        registry: Arc<Mutex<Registry>>) {
         let mut msg_issued_counter: Counter = Counter::default();
         let mut msg_sent_counter: Counter = Counter::default();
         {

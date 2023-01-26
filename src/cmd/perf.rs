@@ -52,10 +52,10 @@ pub struct PerfProduceOpts {
     parallelism: i32,
 
     #[arg(long, default_value = "1")]
-    num_clients: i32,
+    num_clients: u32,
 
     #[arg(long, default_value = "1")]
-    num_producers_per_client: i32,
+    num_producers_per_client: u32,
 
     #[arg(long, default_value = "1000")]
     message_size: usize,
