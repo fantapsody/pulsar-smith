@@ -53,7 +53,7 @@ pub(crate) struct DynamicConfig {
 
     num_clients: u32,
 
-    num_producers_per_clients: u32,
+    num_producers_per_client: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -62,7 +62,7 @@ struct DynamicConfigPatch {
 
     num_clients: Option<u32>,
 
-    num_producers_per_clients: Option<u32>,
+    num_producers_per_client: Option<u32>,
 }
 
 pub struct PerfServer {
@@ -90,7 +90,7 @@ impl PerfServer {
         let config = DynamicConfig {
             rate: opts.rate.unwrap_or(0),
             num_clients: opts.num_clients,
-            num_producers_per_clients: opts.num_producers_per_client,
+            num_producers_per_client: opts.num_producers_per_client,
         };
         Self {
             perf_job: None,
@@ -173,8 +173,8 @@ impl PerfServer {
                             if let Some(num_clients) = new_config.num_clients {
                                 guard.config.num_clients = num_clients;
                             }
-                            if let Some(num_producers_per_clients) = new_config.num_producers_per_clients {
-                                guard.config.num_producers_per_clients = num_producers_per_clients;
+                            if let Some(num_producers_per_clients) = new_config.num_producers_per_client {
+                                guard.config.num_producers_per_client = num_producers_per_clients;
                             }
                         }
                     }
@@ -210,7 +210,7 @@ impl PerfServer {
         }
 
         let client_config = PerfClientDynamicConfig {
-            num_producers: config.num_producers_per_clients,
+            num_producers: config.num_producers_per_client,
         };
         let mut clients = &mut guard.clients;
         while clients.len() > config.num_clients as usize {

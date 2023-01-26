@@ -1,6 +1,7 @@
 use std::borrow::BorrowMut;
 use std::error::Error;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use async_channel::Receiver;
 use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::family::Family;
@@ -12,6 +13,7 @@ use tokio::task::JoinHandle;
 use crate::perf::server::{Message, MessageReceipt};
 
 pub(crate) struct PerfProducer {
+    is_running: Arc<AtomicBool>,
     state: Arc<Mutex<PerfProducerState>>,
 }
 
@@ -29,6 +31,7 @@ impl PerfProducer {
                       tick_receiver: Receiver<(Message, Sender<MessageReceipt>)>,
                       producer_sent_counter_family: Family<Vec<(String, String)>, Counter>) -> Self {
         Self {
+            is_running: Arc::new(AtomicBool::new(false)),
             state: Arc::new(Mutex::new(PerfProducerState {
                 name,
                 producer: Arc::new(Mutex::new(producer)),
@@ -46,9 +49,11 @@ impl PerfProducer {
             return Err(format!("Perf producer {} already started", guard.name).into());
         }
         let name = guard.name.clone();
+        let is_running = self.is_running.clone();
+        is_running.store(true, Ordering::Release);
         info!("Started perf producer {}", name);
         guard.job = Some(tokio::spawn(async move {
-            if let Err(e) = Self::run_perf(state).await {
+            if let Err(e) = Self::run_perf(is_running, state).await {
                 error!("Failed to run producer perf {}", e);
             }
         }));
@@ -59,11 +64,15 @@ impl PerfProducer {
     pub(crate) async fn stop(&mut self) -> Result<(), Box<dyn Error>> {
         let mut guard = self.state.lock().await;
         let name = guard.name.clone();
+        self.is_running.store(false, Ordering::Release);
+        if let Some(job) = guard.job.take() {
+            job.await?;
+        }
         info!("Stopped perf producer {}", name);
         Ok(())
     }
 
-    async fn run_perf(state: Arc<Mutex<PerfProducerState>>) -> Result<(), Box<dyn Error>> {
+    async fn run_perf(is_running: Arc<AtomicBool>, state: Arc<Mutex<PerfProducerState>>) -> Result<(), Box<dyn Error>> {
         let guard = state.lock().await;
         let name = guard.name.clone();
         let mut producer = guard.producer.clone();
@@ -74,7 +83,7 @@ impl PerfProducer {
         let mut producer = producer_guard.borrow_mut();
 
         info!("Producer perf [{}] started", name);
-        loop {
+        while is_running.load(Ordering::Acquire) {
             match tick_receiver.recv().await {
                 Ok(msg) => {
                     let content = Self::generate_content(1000);

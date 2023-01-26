@@ -55,20 +55,21 @@ impl PerfClient {
     }
 
     pub(crate) async fn start(&mut self) -> Result<(), Box<dyn Error>> {
-        let state = self.state.clone();
         let mut guard = self.state.lock().await;
         let client_id = guard.client_id;
-        if guard.job.is_some() {
-            return Err(format!("Perf client {} already started", guard.client_id).into());
-        }
-        guard.job = Some(tokio::spawn(async move {
-            if let Err(e) = Self::control_loop(state).await {
-                error!("Failed to run perf client {}: {}", client_id, e);
-            }
-            ()
-        }));
         drop(guard);
         self.reconcile().await?;
+        info!("Perf client {} started", client_id);
+        Ok(())
+    }
+
+    pub(crate) async fn stop(&mut self) -> Result<(), Box<dyn Error>> {
+        let mut guard = self.state.lock().await;
+        let client_id = guard.client_id;
+        guard.config.num_producers = 0;
+        drop(guard);
+        self.reconcile().await?;
+        info!("Perf client {} stopped", client_id);
         Ok(())
     }
 
@@ -87,6 +88,10 @@ impl PerfClient {
         let producer_sent_counter_family = guard.producer_sent_counter_family.clone();
 
         let mut producers = &mut guard.producers;
+        while producers.len() > config.num_producers as usize {
+            let mut producer = producers.pop().unwrap();
+            producer.stop().await?;
+        }
         while producers.len() < config.num_producers as usize {
             let producer_name = format!("perf-{}-{}", client_id, producers.len());
             let producer = producer_opts.producer_builder(&pulsar_client)?
@@ -99,21 +104,6 @@ impl PerfClient {
             producer.start().await?;
             producers.push(producer);
         }
-        while producers.len() > config.num_producers as usize {
-            let mut producer = producers.pop().unwrap();
-            producer.stop().await?;
-        }
-
-        Ok(())
-    }
-
-    pub(crate) async fn stop(&mut self) -> Result<(), Box<dyn Error>> {
-        Ok(())
-    }
-
-    async fn control_loop(state: Arc<Mutex<PerfClientState>>) -> Result<(), Box<dyn Error>> {
-        let guard = state.lock().await;
-        info!("Started perf client {}", guard.client_id);
 
         Ok(())
     }
