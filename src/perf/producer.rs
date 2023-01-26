@@ -5,7 +5,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use async_channel::Receiver;
 use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::family::Family;
-use prometheus_client::registry::Registry;
 use pulsar::{Producer, TokioExecutor};
 use tokio::sync::Mutex;
 use tokio::sync::oneshot::Sender;
@@ -75,12 +74,12 @@ impl PerfProducer {
     async fn run_perf(is_running: Arc<AtomicBool>, state: Arc<Mutex<PerfProducerState>>) -> Result<(), Box<dyn Error>> {
         let guard = state.lock().await;
         let name = guard.name.clone();
-        let mut producer = guard.producer.clone();
+        let producer = guard.producer.clone();
         let tick_receiver = guard.tick_receiver.clone();
         let producer_sent_counter_family = guard.producer_sent_counter_family.clone();
         drop(guard);
         let mut producer_guard = producer.lock().await;
-        let mut producer = producer_guard.borrow_mut();
+        let producer = producer_guard.borrow_mut();
 
         info!("Producer perf [{}] started", name);
         while is_running.load(Ordering::Acquire) {

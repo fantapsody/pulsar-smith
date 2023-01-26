@@ -7,7 +7,7 @@ use pulsar::consumer::{InitialPosition, Message};
 use crate::cmd::cmd::AsyncCmd;
 use crate::context::PulsarContext;
 use crate::error::Error;
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 use chrono::TimeZone;
 
 #[derive(Parser, Debug, Clone)]

@@ -5,7 +5,6 @@ use oauth2::{AuthUrl, ClientId, ClientSecret, TokenResponse, TokenUrl};
 use oauth2::AuthType::RequestBody;
 use oauth2::basic::BasicClient;
 use oauth2::reqwest::async_http_client;
-use reqwest::Url;
 use serde::Deserialize;
 
 use crate::auth::auth::Authn;

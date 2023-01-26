@@ -1,17 +1,5 @@
-use std::time::Duration;
-use async_channel::SendError;
-
 use async_trait::async_trait;
 use clap::Parser;
-use futures::future::err;
-use prometheus_client::encoding::text::encode;
-use prometheus_client::metrics::counter::Counter;
-use prometheus_client::metrics::family::Family;
-use pulsar::producer::SendFuture;
-use rand::Rng;
-use tokio::sync::oneshot::Sender;
-use tokio::time::Instant;
-use prometheus_client::registry::Registry;
 
 use crate::cmd::cmd::AsyncCmd;
 use crate::cmd::commons::ProducerOpts;
@@ -64,7 +52,7 @@ pub struct PerfProduceOpts {
 #[async_trait]
 impl AsyncCmd for PerfProduceOpts {
     async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
-        let opts = crate::perf::PerfOpts{
+        let opts = crate::perf::PerfOpts {
             pulsar_config: pulsar_ctx.get_config().clone(),
             producer_opts: self.producer_opts.clone(),
             rate: self.rate,

@@ -2,7 +2,6 @@ use std::error::Error;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
-use actix_web::web::Data;
 use async_channel::Sender;
 use governor::{clock, Quota, RateLimiter};
 use prometheus_client::metrics::counter::{Atomic, Counter};
@@ -58,13 +57,15 @@ impl Ticker {
         self.rate.store(new_rate, Ordering::Release);
     }
 
-    pub async fn stop(&mut self) {}
+    pub async fn stop(&mut self) -> Result<(), Box<dyn Error>> {
+        Ok(())
+    }
 
     async fn send_ticks(sender: Sender<(Message, tokio::sync::oneshot::Sender<MessageReceipt>)>,
                         rate: Arc<AtomicU32>,
                         registry: Arc<Mutex<Registry>>) {
-        let mut msg_issued_counter: Counter = Counter::default();
-        let mut msg_sent_counter: Counter = Counter::default();
+        let msg_issued_counter: Counter = Counter::default();
+        let msg_sent_counter: Counter = Counter::default();
         {
             let mut registry_guard = registry.lock().await;
             registry_guard.borrow_mut().register("msg_issued", "Message issued", msg_issued_counter.clone());
