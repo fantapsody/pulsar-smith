@@ -1,5 +1,6 @@
 use std::sync::{Arc};
 use actix_web::{get, patch, App, HttpResponse, HttpServer, web};
+use actix_web::dev::Server;
 use actix_web::web::Data;
 use async_trait::async_trait;
 use clap::Parser;
@@ -67,16 +68,31 @@ impl AsyncCmd for PerfProduceOpts {
             num_producers_per_client: self.num_producers_per_client,
             message_size: self.message_size,
         };
-        let mut perf_server = crate::perf::PerfServer::new(opts);
+        let mut perf_server = PerfServer::new(opts);
         perf_server.start().await?;
         let perf_server = Arc::new(RwLock::new(perf_server));
-        Self::run_http_server(perf_server).await?;
+        let http_server = Self::run_http_server(perf_server.clone()).await?;
+        let http_server_handle = http_server.handle();
+
+        tokio::spawn(async move {
+            if let Err(e) = tokio::signal::ctrl_c().await {
+                error!("Failed to monitor the interrupt signal {}", e);
+            }
+            info!("Received interrupt signal");
+            http_server_handle.stop(true).await;
+            let mut write_guard = perf_server.write().await;
+            if let Err(e) = write_guard.stop().await {
+                error!("Failed to stop perf server {}", e);
+            }
+        });
+
+        http_server.await?;
         Ok(())
     }
 }
 
 impl PerfProduceOpts {
-    async fn run_http_server(perf_server: Arc<RwLock<PerfServer>>) -> Result<(), Box<dyn std::error::Error>> {
+    async fn run_http_server(perf_server: Arc<RwLock<PerfServer>>) -> Result<Server, Box<dyn std::error::Error>> {
         let server = HttpServer::new(move ||
             {
                 App::new()
@@ -85,10 +101,10 @@ impl PerfProduceOpts {
                     .service(get_config)
                     .service(patch_config)
             })
+            .disable_signals()
             .bind(("127.0.0.1", 8001))?
             .run();
-        server.await.unwrap();
-        Ok(())
+        Ok(server)
     }
 }
 

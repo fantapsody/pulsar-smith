@@ -92,11 +92,12 @@ impl PerfServer {
 impl PerfServer {
     pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
         self.start_perf().await?;
-        // self.run_http_server().await?;
+        info!("Started perf server");
         Ok(())
     }
 
     pub async fn stop(&mut self) -> Result<(), Box<dyn Error>> {
+        info!("Stopped perf server");
         Ok(())
     }
 
