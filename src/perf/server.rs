@@ -6,14 +6,14 @@ use async_channel::Receiver;
 use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::family::Family;
 use prometheus_client::registry::Registry;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 use tokio::sync::oneshot::Sender;
 use serde::{Serialize, Deserialize};
 use tokio::task::JoinHandle;
 use crate::cmd::commons::ProducerOpts;
 use crate::config::PulsarConfig;
 use crate::context::PulsarContext;
-use crate::perf::client::{PerfClient, PerfClientDynamicConfig};
+use crate::perf::client::{PerfClient};
 use crate::perf::ticker::Ticker;
 
 #[derive(Clone)]
@@ -35,11 +35,13 @@ pub struct PerfOpts {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DynamicConfig {
-    rate: u32,
+    pub(crate) rate: u32,
 
-    num_clients: u32,
+    pub(crate) num_clients: u32,
 
-    num_producers_per_client: u32,
+    pub(crate) num_producers_per_client: u32,
+
+    pub(crate) message_size: usize,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -49,6 +51,8 @@ pub struct DynamicConfigPatch {
     num_clients: Option<u32>,
 
     num_producers_per_client: Option<u32>,
+
+    message_size: Option<usize>,
 }
 
 pub struct PerfServer {
@@ -59,9 +63,9 @@ pub struct PerfServer {
     state: Arc<Mutex<PerfServerState>>,
 }
 
-pub struct PerfServerState {
+struct PerfServerState {
     opts: PerfOpts,
-    config: DynamicConfig,
+    config: Arc<RwLock<DynamicConfig>>,
     registry: Arc<Mutex<Registry>>,
     request_receiver: Receiver<ControlRequest>,
     tick_receiver: Receiver<(Message, Sender<MessageReceipt>)>,
@@ -78,6 +82,7 @@ impl PerfServer {
             rate: opts.rate.unwrap_or(0),
             num_clients: opts.num_clients,
             num_producers_per_client: opts.num_producers_per_client,
+            message_size: opts.message_size,
         };
         Self {
             mutex: Mutex::new(()),
@@ -90,7 +95,7 @@ impl PerfServer {
                 tick_receiver,
                 registry: registry.clone(),
                 ticker: Ticker::new(tick_sender, registry.clone()),
-                config,
+                config: Arc::new(RwLock::new(config)),
                 clients: vec![],
             })),
 
@@ -131,7 +136,8 @@ impl PerfServer {
 
     pub async fn get_config(&self) -> DynamicConfig {
         let guard = self.state.lock().await;
-        guard.config.clone()
+        let config = guard.config.read().await;
+        config.clone()
     }
 
     pub async fn update_config(&self, config: DynamicConfigPatch) -> DynamicConfig {
@@ -182,17 +188,25 @@ impl PerfServer {
                 Ok(request) => {
                     match request {
                         ControlRequest::UpdateConfig(new_config, resp_sender) => {
-                            let mut guard = state.lock().await;
+                            let guard = state.lock().await;
+                            let mut config_guard = guard.config.write().await;
                             if let Some(rate) = new_config.rate {
-                                guard.config.rate = rate;
+                                info!("Updated rate config: {} -> {}", config_guard.rate, rate);
+                                config_guard.rate = rate;
                             }
                             if let Some(num_clients) = new_config.num_clients {
-                                guard.config.num_clients = num_clients;
+                                info!("Updated num_clients config: {} -> {}", config_guard.num_clients, num_clients);
+                                config_guard.num_clients = num_clients;
                             }
-                            if let Some(num_producers_per_clients) = new_config.num_producers_per_client {
-                                guard.config.num_producers_per_client = num_producers_per_clients;
+                            if let Some(num_producers_per_client) = new_config.num_producers_per_client {
+                                info!("Updated num_producers_per_clients config: {} -> {}", config_guard.num_producers_per_client, num_producers_per_client);
+                                config_guard.num_producers_per_client = num_producers_per_client;
                             }
-                            if let Err(_) = resp_sender.send(ControlResponse::UpdateConfig(guard.config.clone())) {
+                            if let Some(message_size) = new_config.message_size {
+                                info!("Updated message_size config: {} -> {}", config_guard.message_size, message_size);
+                                config_guard.message_size = message_size;
+                            }
+                            if let Err(_) = resp_sender.send(ControlResponse::UpdateConfig(config_guard.clone())) {
                                 warn!("Failed to send control response");
                             }
                         }
@@ -221,6 +235,11 @@ impl PerfServer {
         let tick_receiver = guard.tick_receiver.clone();
         let registry = guard.registry.clone();
 
+        let (rate, num_clients) = {
+            let config = config.read().await;
+            (config.rate, config.num_clients)
+        };
+
         let producer_sent_counter_family = Family::<Vec<(String, String)>, Counter>::default();
 
         {
@@ -229,7 +248,7 @@ impl PerfServer {
         }
 
         if is_running.load(Ordering::Acquire) {
-            guard.ticker.update_rate(config.rate);
+            guard.ticker.update_rate(rate);
             if !guard.ticker.is_started().await {
                 guard.ticker.start().await?;
             }
@@ -238,12 +257,9 @@ impl PerfServer {
         }
 
         let desired_num_clients = if is_running.load(Ordering::Acquire) {
-            config.num_clients as usize
+            num_clients as usize
         } else {
             0
-        };
-        let client_config = PerfClientDynamicConfig {
-            num_producers: config.num_producers_per_client,
         };
         let clients = &mut guard.clients;
         while clients.len() > desired_num_clients {
@@ -251,13 +267,12 @@ impl PerfServer {
             client.stop().await?;
         }
         for client in clients.iter_mut() {
-            client.update_config(client_config.clone()).await;
             client.reconcile().await?;
         }
         while clients.len() < desired_num_clients {
             let pulsar_client = ctx.new_client().await?;
             let mut client = PerfClient::new(clients.len() as u32,
-                                             client_config.clone(),
+                                             config.clone(),
                                              pulsar_client,
                                              producer_opts.clone(),
                                              tick_receiver.clone(),

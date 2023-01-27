@@ -6,10 +6,10 @@ use async_channel::Receiver;
 use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::family::Family;
 use pulsar::{Producer, TokioExecutor};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 use tokio::sync::oneshot::Sender;
 use tokio::task::JoinHandle;
-use crate::perf::server::{Message, MessageReceipt};
+use crate::perf::server::{DynamicConfig, Message, MessageReceipt};
 
 pub(crate) struct PerfProducer {
     is_running: Arc<AtomicBool>,
@@ -20,6 +20,7 @@ struct PerfProducerState {
     name: String,
     producer: Arc<Mutex<Producer<TokioExecutor>>>,
     tick_receiver: Receiver<(Message, Sender<MessageReceipt>)>,
+    config: Arc<RwLock<DynamicConfig>>,
     producer_sent_counter_family: Family<Vec<(String, String)>, Counter>,
     job: Option<JoinHandle<()>>,
 }
@@ -28,12 +29,14 @@ impl PerfProducer {
     pub(crate) fn new(name: String,
                       producer: Producer<TokioExecutor>,
                       tick_receiver: Receiver<(Message, Sender<MessageReceipt>)>,
+                      config: Arc<RwLock<DynamicConfig>>,
                       producer_sent_counter_family: Family<Vec<(String, String)>, Counter>) -> Self {
         Self {
             is_running: Arc::new(AtomicBool::new(false)),
             state: Arc::new(Mutex::new(PerfProducerState {
                 name,
                 producer: Arc::new(Mutex::new(producer)),
+                config: config.clone(),
                 tick_receiver,
                 producer_sent_counter_family,
                 job: None,
@@ -77,6 +80,7 @@ impl PerfProducer {
         let producer = guard.producer.clone();
         let tick_receiver = guard.tick_receiver.clone();
         let producer_sent_counter_family = guard.producer_sent_counter_family.clone();
+        let config = guard.config.clone();
         drop(guard);
         let mut producer_guard = producer.lock().await;
         let producer = producer_guard.borrow_mut();
@@ -85,7 +89,11 @@ impl PerfProducer {
         while is_running.load(Ordering::Acquire) {
             match tick_receiver.recv().await {
                 Ok(msg) => {
-                    let content = Self::generate_content(1000);
+                    let message_size = {
+                        let guard = config.read().await;
+                        guard.message_size
+                    };
+                    let content = Self::generate_content(message_size);
                     let r = producer.create_message()
                         .with_content(content)
                         .send()
