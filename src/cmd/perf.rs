@@ -135,7 +135,7 @@ async fn get_config(perf_server: Data<RwLock<PerfServer>>) -> HttpResponse {
 async fn patch_config(config_patch: web::Json<DynamicConfigPatch>,
                       perf_server: Data<RwLock<PerfServer>>) -> HttpResponse {
     let read_guard = perf_server.read().await;
-    let config = read_guard.update_config(config_patch.0).await;
+    let config = read_guard.update_config(config_patch.0).await.unwrap();
     HttpResponse::Ok()
         .json(&config)
 }

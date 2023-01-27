@@ -114,6 +114,7 @@ impl PerfServer {
                 error!("Failed to run the control loop: {}", e)
             }
         }));
+        self.trigger_reconcile().await?;
         info!("Started perf server");
         Ok(())
     }
@@ -122,7 +123,7 @@ impl PerfServer {
         let _lock = self.mutex.lock().await;
         if let Some(handle) = self.ctrl_loop_handle.take() {
             self.is_running.store(false, Ordering::Release);
-            self.request_sender.send(ControlRequest::Stop).await?;
+            self.trigger_reconcile().await?;
             handle.await?;
         }
         info!("Stopped perf server");
@@ -140,13 +141,19 @@ impl PerfServer {
         config.clone()
     }
 
-    pub async fn update_config(&self, config: DynamicConfigPatch) -> DynamicConfig {
+    pub async fn trigger_reconcile(&self) -> Result<(), Box<dyn Error>> {
+        info!("To trigger reconcile");
+        self.request_sender.send(ControlRequest::Trigger).await.unwrap();
+        Ok(())
+    }
+
+    pub async fn update_config(&self, config: DynamicConfigPatch) -> Result<DynamicConfig, Box<dyn Error>> {
         let (resp_sender, resp_receiver) = tokio::sync::oneshot::channel();
         self.request_sender.send(ControlRequest::UpdateConfig(config, resp_sender)).await.unwrap();
-        let config = resp_receiver.await.unwrap();
-        match config {
+        let response = resp_receiver.await.unwrap();
+        match response {
             ControlResponse::UpdateConfig(c) => {
-                c
+                Ok(c)
             }
         }
     }
@@ -161,12 +168,12 @@ pub struct MessageReceipt {}
 #[derive(Debug)]
 enum ControlRequest {
     UpdateConfig(DynamicConfigPatch, Sender<ControlResponse>),
-    Stop,
+    Trigger,
 }
 
 #[derive(Debug)]
 enum ControlResponse {
-    UpdateConfig(DynamicConfig)
+    UpdateConfig(DynamicConfig),
 }
 
 impl PerfServer {
@@ -178,12 +185,6 @@ impl PerfServer {
         drop(guard);
 
         while is_running.load(Ordering::Acquire) {
-            match Self::reconcile_state(is_running.clone(), state.clone()).await {
-                Ok(_) => {}
-                Err(e) => {
-                    error!("Failed to reconcile perf state: {}", e)
-                }
-            };
             match receiver.recv().await {
                 Ok(request) => {
                     match request {
@@ -210,9 +211,8 @@ impl PerfServer {
                                 warn!("Failed to send control response");
                             }
                         }
-                        ControlRequest::Stop => {
-                            info!("Received stop command");
-                            break;
+                        ControlRequest::Trigger => {
+                            info!("Trigger reconcile");
                         }
                     }
                 }
@@ -221,6 +221,12 @@ impl PerfServer {
                     break;
                 }
             }
+            match Self::reconcile_state(is_running.clone(), state.clone()).await {
+                Ok(_) => {}
+                Err(e) => {
+                    error!("Failed to reconcile perf state: {}", e)
+                }
+            };
         }
         Self::reconcile_state(is_running.clone(), state.clone()).await?;
         info!("Perf server controller ended");
