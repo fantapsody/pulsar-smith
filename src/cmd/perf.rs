@@ -74,19 +74,23 @@ impl AsyncCmd for PerfProduceOpts {
         let http_server = Self::run_http_server(perf_server.clone()).await?;
         let http_server_handle = http_server.handle();
 
-        tokio::spawn(async move {
-            if let Err(e) = tokio::signal::ctrl_c().await {
-                error!("Failed to monitor the interrupt signal {}", e);
-            }
-            info!("Received interrupt signal");
-            http_server_handle.stop(true).await;
-            let mut write_guard = perf_server.write().await;
-            if let Err(e) = write_guard.stop().await {
-                error!("Failed to stop perf server {}", e);
-            }
+        let http_server_job = tokio::spawn(async move {
+            http_server.await.unwrap();
+            info!("HTTP server stopped");
+            ()
         });
 
-        http_server.await?;
+        if let Err(e) = tokio::signal::ctrl_c().await {
+            error!("Failed to monitor the interrupt signal {}", e);
+        }
+        info!("Received interrupt signal");
+        http_server_handle.stop(true).await;
+        let mut write_guard = perf_server.write().await;
+        if let Err(e) = write_guard.stop().await {
+            error!("Failed to stop perf server {}", e);
+        }
+        http_server_job.await.unwrap();
+
         Ok(())
     }
 }

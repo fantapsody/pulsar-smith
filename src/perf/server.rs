@@ -1,6 +1,7 @@
 use std::borrow::BorrowMut;
 use std::error::Error;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use async_channel::Receiver;
 use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::family::Family;
@@ -8,6 +9,7 @@ use prometheus_client::registry::Registry;
 use tokio::sync::Mutex;
 use tokio::sync::oneshot::Sender;
 use serde::{Serialize, Deserialize};
+use tokio::task::JoinHandle;
 use crate::cmd::commons::ProducerOpts;
 use crate::config::PulsarConfig;
 use crate::context::PulsarContext;
@@ -50,6 +52,10 @@ pub struct DynamicConfigPatch {
 }
 
 pub struct PerfServer {
+    mutex: Mutex<()>,
+    ctrl_loop_handle: Option<JoinHandle<()>>,
+    is_running: Arc<AtomicBool>,
+    request_sender: async_channel::Sender<ControlRequest>,
     state: Arc<Mutex<PerfServerState>>,
 }
 
@@ -57,8 +63,7 @@ pub struct PerfServerState {
     opts: PerfOpts,
     config: DynamicConfig,
     registry: Arc<Mutex<Registry>>,
-    request_sender: async_channel::Sender<(ControlRequest, Sender<ControlResponse>)>,
-    request_receiver: Receiver<(ControlRequest, Sender<ControlResponse>)>,
+    request_receiver: Receiver<ControlRequest>,
     tick_receiver: Receiver<(Message, Sender<MessageReceipt>)>,
     ticker: Ticker,
     clients: Vec<PerfClient>,
@@ -66,7 +71,7 @@ pub struct PerfServerState {
 
 impl PerfServer {
     pub fn new(opts: PerfOpts) -> Self {
-        let (request_sender, request_receiver) = async_channel::bounded::<(ControlRequest, Sender<ControlResponse>)>(100);
+        let (request_sender, request_receiver) = async_channel::bounded::<ControlRequest>(5);
         let (tick_sender, tick_receiver) = async_channel::bounded::<(Message, Sender<MessageReceipt>)>(100);
         let registry = Arc::new(Mutex::new(Registry::default()));
         let config = DynamicConfig {
@@ -75,9 +80,12 @@ impl PerfServer {
             num_producers_per_client: opts.num_producers_per_client,
         };
         Self {
+            mutex: Mutex::new(()),
+            ctrl_loop_handle: None,
+            is_running: Arc::new(AtomicBool::new(false)),
+            request_sender,
             state: Arc::new(Mutex::new(PerfServerState {
                 opts: opts.clone(),
-                request_sender,
                 request_receiver,
                 tick_receiver,
                 registry: registry.clone(),
@@ -85,18 +93,33 @@ impl PerfServer {
                 config,
                 clients: vec![],
             })),
+
         }
     }
 }
 
 impl PerfServer {
     pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
-        self.start_perf().await?;
+        let _lock = self.mutex.lock().await;
+        let state = self.state.clone();
+        let is_running = self.is_running.clone();
+        is_running.store(true, Ordering::Release);
+        self.ctrl_loop_handle = Some(tokio::spawn(async move {
+            if let Err(e) = Self::control_loop(is_running, state).await {
+                error!("Failed to run the control loop: {}", e)
+            }
+        }));
         info!("Started perf server");
         Ok(())
     }
 
     pub async fn stop(&mut self) -> Result<(), Box<dyn Error>> {
+        let _lock = self.mutex.lock().await;
+        if let Some(handle) = self.ctrl_loop_handle.take() {
+            self.is_running.store(false, Ordering::Release);
+            self.request_sender.send(ControlRequest::Stop).await?;
+            handle.await?;
+        }
         info!("Stopped perf server");
         Ok(())
     }
@@ -112,10 +135,8 @@ impl PerfServer {
     }
 
     pub async fn update_config(&self, config: DynamicConfigPatch) -> DynamicConfig {
-        let state_guard = self.state.lock().await;
         let (resp_sender, resp_receiver) = tokio::sync::oneshot::channel();
-        state_guard.request_sender.send((ControlRequest::UpdateConfig(config), resp_sender)).await.unwrap();
-        drop(state_guard);
+        self.request_sender.send(ControlRequest::UpdateConfig(config, resp_sender)).await.unwrap();
         let config = resp_receiver.await.unwrap();
         match config {
             ControlResponse::UpdateConfig(c) => {
@@ -133,7 +154,8 @@ pub struct MessageReceipt {}
 
 #[derive(Debug)]
 enum ControlRequest {
-    UpdateConfig(DynamicConfigPatch),
+    UpdateConfig(DynamicConfigPatch, Sender<ControlResponse>),
+    Stop,
 }
 
 #[derive(Debug)]
@@ -142,33 +164,24 @@ enum ControlResponse {
 }
 
 impl PerfServer {
-    async fn start_perf(&mut self) -> Result<(), Box<dyn Error>> {
-        let state = self.state.clone();
-        tokio::spawn(async move {
-            if let Err(e) = Self::control_loop(state).await {
-                error!("Failed to run the control loop: {}", e)
-            }
-        });
-        Ok(())
-    }
-
-    async fn control_loop(state: Arc<Mutex<PerfServerState>>) -> Result<(), Box<dyn Error>> {
+    async fn control_loop(is_running: Arc<AtomicBool>,
+                          state: Arc<Mutex<PerfServerState>>) -> Result<(), Box<dyn Error>> {
         info!("Perf server controller started");
         let guard = state.lock().await;
         let receiver = guard.request_receiver.clone();
         drop(guard);
 
-        loop {
-            match Self::reconcile_state(state.clone()).await {
+        while is_running.load(Ordering::Acquire) {
+            match Self::reconcile_state(is_running.clone(), state.clone()).await {
                 Ok(_) => {}
                 Err(e) => {
                     error!("Failed to reconcile perf state: {}", e)
                 }
             };
             match receiver.recv().await {
-                Ok((request, resp_sender)) => {
+                Ok(request) => {
                     match request {
-                        ControlRequest::UpdateConfig(new_config) => {
+                        ControlRequest::UpdateConfig(new_config, resp_sender) => {
                             let mut guard = state.lock().await;
                             if let Some(rate) = new_config.rate {
                                 guard.config.rate = rate;
@@ -183,6 +196,10 @@ impl PerfServer {
                                 warn!("Failed to send control response");
                             }
                         }
+                        ControlRequest::Stop => {
+                            info!("Received stop command");
+                            break;
+                        }
                     }
                 }
                 Err(e) => {
@@ -191,13 +208,12 @@ impl PerfServer {
                 }
             }
         }
-        let mut guard = state.lock().await;
-        guard.ticker.stop().await?;
+        Self::reconcile_state(is_running.clone(), state.clone()).await?;
         info!("Perf server controller ended");
         Ok(())
     }
 
-    async fn reconcile_state(state: Arc<Mutex<PerfServerState>>) -> Result<(), Box<dyn Error>> {
+    async fn reconcile_state(is_running: Arc<AtomicBool>, state: Arc<Mutex<PerfServerState>>) -> Result<(), Box<dyn Error>> {
         let mut guard = state.lock().await;
         let producer_opts = Arc::new(guard.opts.producer_opts.clone());
         let ctx = PulsarContext::from(guard.opts.pulsar_config.clone());
@@ -212,16 +228,25 @@ impl PerfServer {
             registry_guard.borrow_mut().register("producer_sent_counter_family", "Producer sent message counters", producer_sent_counter_family.clone());
         }
 
-        guard.ticker.update_rate(config.rate);
-        if !guard.ticker.is_started().await {
-            guard.ticker.start().await?;
+        if is_running.load(Ordering::Acquire) {
+            guard.ticker.update_rate(config.rate);
+            if !guard.ticker.is_started().await {
+                guard.ticker.start().await?;
+            }
+        } else {
+            guard.ticker.stop().await?;
         }
 
+        let desired_num_clients = if is_running.load(Ordering::Acquire) {
+            config.num_clients as usize
+        } else {
+            0
+        };
         let client_config = PerfClientDynamicConfig {
             num_producers: config.num_producers_per_client,
         };
         let clients = &mut guard.clients;
-        while clients.len() > config.num_clients as usize {
+        while clients.len() > desired_num_clients {
             let mut client = clients.pop().unwrap();
             client.stop().await?;
         }
@@ -229,7 +254,7 @@ impl PerfServer {
             client.update_config(client_config.clone()).await;
             client.reconcile().await?;
         }
-        while clients.len() < config.num_clients as usize {
+        while clients.len() < desired_num_clients {
             let pulsar_client = ctx.new_client().await?;
             let mut client = PerfClient::new(clients.len() as u32,
                                              client_config.clone(),
