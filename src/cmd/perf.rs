@@ -1,10 +1,16 @@
+use std::sync::{Arc};
+use actix_web::{get, patch, App, HttpResponse, HttpServer, web};
+use actix_web::web::Data;
 use async_trait::async_trait;
 use clap::Parser;
+use prometheus_client::encoding::text::encode;
+use tokio::sync::RwLock;
 
 use crate::cmd::cmd::AsyncCmd;
 use crate::cmd::commons::ProducerOpts;
 use crate::context::PulsarContext;
 use crate::error::Error;
+use crate::perf::{DynamicConfigPatch, PerfServer};
 
 #[derive(Parser, Debug, Clone)]
 pub struct PerfOpts {
@@ -62,8 +68,55 @@ impl AsyncCmd for PerfProduceOpts {
             message_size: self.message_size,
         };
         let mut perf_server = crate::perf::PerfServer::new(opts);
-        perf_server.run().await?;
+        perf_server.start().await?;
+        let perf_server = Arc::new(RwLock::new(perf_server));
+        Self::run_http_server(perf_server).await?;
         Ok(())
     }
+}
+
+impl PerfProduceOpts {
+    async fn run_http_server(perf_server: Arc<RwLock<PerfServer>>) -> Result<(), Box<dyn std::error::Error>> {
+        let server = HttpServer::new(move ||
+            {
+                App::new()
+                    .app_data(Data::from(perf_server.clone()))
+                    .service(metrics)
+                    .service(get_config)
+                    .service(patch_config)
+            })
+            .bind(("127.0.0.1", 8001))?
+            .run();
+        server.await.unwrap();
+        Ok(())
+    }
+}
+
+#[get("/metrics")]
+async fn metrics(perf_server: Data<RwLock<PerfServer>>) -> HttpResponse {
+    let mut buf = String::new();
+    let read_guard = perf_server.read().await;
+    let registry = read_guard.get_registry().await;
+    let registry_guard = registry.lock().await;
+    encode(&mut buf, &registry_guard).unwrap();
+    HttpResponse::Ok()
+        .body(buf)
+}
+
+#[get("/config")]
+async fn get_config(perf_server: Data<RwLock<PerfServer>>) -> HttpResponse {
+    let read_guard = perf_server.read().await;
+    let config = read_guard.get_config().await;
+    HttpResponse::Ok()
+        .json(&config)
+}
+
+#[patch("/config")]
+async fn patch_config(config_patch: web::Json<DynamicConfigPatch>,
+                      perf_server: Data<RwLock<PerfServer>>) -> HttpResponse {
+    let read_guard = perf_server.read().await;
+    let config = read_guard.update_config(config_patch.0).await;
+    HttpResponse::Ok()
+        .json(&config)
 }
 

@@ -1,10 +1,7 @@
 use std::borrow::BorrowMut;
 use std::error::Error;
 use std::sync::Arc;
-use actix_web::{get, patch, App, HttpServer, web, HttpResponse};
-use actix_web::web::{Data};
 use async_channel::Receiver;
-use prometheus_client::encoding::text::encode;
 use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::family::Family;
 use prometheus_client::registry::Registry;
@@ -35,7 +32,7 @@ pub struct PerfOpts {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub(crate) struct DynamicConfig {
+pub struct DynamicConfig {
     rate: u32,
 
     num_clients: u32,
@@ -44,7 +41,7 @@ pub(crate) struct DynamicConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct DynamicConfigPatch {
+pub struct DynamicConfigPatch {
     rate: Option<u32>,
 
     num_clients: Option<u32>,
@@ -93,10 +90,37 @@ impl PerfServer {
 }
 
 impl PerfServer {
-    pub async fn run(&mut self) -> Result<(), Box<dyn Error>> {
+    pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
         self.start_perf().await?;
-        self.run_http_server().await?;
+        // self.run_http_server().await?;
         Ok(())
+    }
+
+    pub async fn stop(&mut self) -> Result<(), Box<dyn Error>> {
+        Ok(())
+    }
+
+    pub async fn get_registry(&self) -> Arc<Mutex<Registry>> {
+        let guard = self.state.lock().await;
+        guard.registry.clone()
+    }
+
+    pub async fn get_config(&self) -> DynamicConfig {
+        let guard = self.state.lock().await;
+        guard.config.clone()
+    }
+
+    pub async fn update_config(&self, config: DynamicConfigPatch) -> DynamicConfig {
+        let state_guard = self.state.lock().await;
+        let (resp_sender, resp_receiver) = tokio::sync::oneshot::channel();
+        state_guard.request_sender.send((ControlRequest::UpdateConfig(config), resp_sender)).await.unwrap();
+        drop(state_guard);
+        let config = resp_receiver.await.unwrap();
+        match config {
+            ControlResponse::UpdateConfig(c) => {
+                c
+            }
+        }
     }
 }
 
@@ -216,61 +240,6 @@ impl PerfServer {
             clients.push(client);
         }
 
-        Ok(())
-    }
-}
-
-#[get("/metrics")]
-async fn metrics(registry: Data<Mutex<Registry>>) -> HttpResponse {
-    let mut buf = String::new();
-    let registry = registry.lock().await;
-    encode(&mut buf, &registry).unwrap();
-    HttpResponse::Ok()
-        .body(buf)
-}
-
-#[get("/config")]
-async fn get_config(state: Data<Mutex<PerfServerState>>) -> HttpResponse {
-    let state_guard = state.lock().await;
-    HttpResponse::Ok()
-        .json(&state_guard.config)
-}
-
-#[patch("/config")]
-async fn patch_config(config_patch: web::Json<DynamicConfigPatch>,
-                      state: Data<Mutex<PerfServerState>>) -> HttpResponse {
-    let state_guard = state.lock().await;
-    let (resp_sender, resp_receiver) = tokio::sync::oneshot::channel();
-    state_guard.request_sender.send((ControlRequest::UpdateConfig(config_patch.0), resp_sender)).await.unwrap();
-    drop(state_guard);
-    let config = resp_receiver.await.unwrap();
-    match config {
-        ControlResponse::UpdateConfig(c) => {
-            HttpResponse::Ok()
-                .json(&c)
-        }
-    }
-}
-
-impl PerfServer {
-    async fn run_http_server(&mut self) -> Result<(), Box<dyn Error>> {
-        let state_guard = self.state.lock().await;
-        let registry = state_guard.registry.clone();
-        drop(state_guard);
-        let state = self.state.clone();
-
-        let server = HttpServer::new(move ||
-            {
-                App::new()
-                    .app_data(Data::from(registry.clone()))
-                    .app_data(Data::from(state.clone()))
-                    .service(metrics)
-                    .service(get_config)
-                    .service(patch_config)
-            })
-            .bind(("127.0.0.1", 8001))?
-            .run();
-        server.await.unwrap();
         Ok(())
     }
 }
