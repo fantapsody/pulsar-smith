@@ -38,7 +38,7 @@ impl TopicDomain {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LookupResponse {
     #[serde(rename = "brokerUrl")]
-    pub broker_url: String,
+    pub broker_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "brokerUrlTls")]
     pub broker_url_tls: Option<String>,
