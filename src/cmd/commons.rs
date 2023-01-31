@@ -1,9 +1,8 @@
-use pulsar::message::proto::CompressionType;
 use crate::error::Error;
-use pulsar::message::proto::CompressionType::{Lz4, Zlib, Zstd, Snappy};
 use pulsar::{ProducerOptions, TokioExecutor, Pulsar};
 use pulsar::producer::ProducerBuilder;
 use clap::Parser;
+use pulsar::compression::{Compression};
 
 #[derive(Parser, Debug, Clone)]
 #[command(version = "1.0", author = "Yang Yang <yyang@streamnative.io>")]
@@ -32,14 +31,14 @@ impl ProducerOpts {
         }
     }
 
-    fn parse_compression(&self) -> Result<Option<CompressionType>, Error> {
+    fn parse_compression(&self) -> Result<Option<Compression>, Error> {
         match self.compression.as_ref() {
             Some(str) => {
                 match str.to_lowercase().as_str() {
-                    "lz4" => Ok(Some(Lz4)),
-                    "zlib" => Ok(Some(Zlib)),
-                    "zstd" => Ok(Some(Zstd)),
-                    "snappy" => Ok(Some(Snappy)),
+                    "lz4" => Ok(Some(Compression::Lz4(Default::default()))),
+                    "zlib" => Ok(Some(Compression::Zlib(Default::default()))),
+                    "zstd" => Ok(Some(Compression::Zstd(Default::default()))),
+                    "snappy" => Ok(Some(Compression::Snappy(Default::default()))),
                     _ => Err(Error::Custom(format!("illegal compression [{}]", str))),
                 }
             }
