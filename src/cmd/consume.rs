@@ -86,7 +86,7 @@ impl AsyncCmd for ConsumeOpts {
 
 impl ConsumeOpts {
     fn print_msg(&self, msg: Message<String>) {
-        trace!("got message, topic: [{}], metadata: [{:?}], data: [{:?}]", &msg.topic, &msg.payload, &msg.payload.data);
+        debug!("got message, topic: [{}], metadata: [{:?}], data: [{:?}]", &msg.topic, &msg.payload.metadata, &msg.payload.data);
         let latency_ms = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -95,6 +95,8 @@ impl ConsumeOpts {
         if let Some(time) = msg.metadata().event_time {
             println!("event time(ms): {}", chrono::Utc.timestamp_millis(time as i64).to_rfc3339());
         }
+        println!("properties: {:?}", msg.metadata().properties);
+
         println!("msg:\n{}", String::from_utf8(msg.payload.data).unwrap());
     }
 }

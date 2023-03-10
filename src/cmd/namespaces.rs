@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use clap::Parser;
+use regex::Regex;
 
 use crate::admin::namespaces::{NamespacePolicies, PersistencePolicies};
 use crate::admin::topics::TopicDomain;
@@ -27,6 +28,7 @@ impl AsyncCmd for NamespacesOpts {
             Command::SetPersistence(opts) => opts,
             Command::RemovePersistence(opts) => opts,
             Command::Unsubscribe(opts) => opts,
+            Command::DeleteTopics(opts) => opts,
         };
         cmd.run(pulsar_ctx).await?;
         Ok(())
@@ -45,6 +47,7 @@ pub enum Command {
     SetPersistence(SetPersistenceOpts),
     RemovePersistence(RemovePersistenceOpts),
     Unsubscribe(UnsubscribeOpts),
+    DeleteTopics(DeleteTopicsOpts),
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -267,17 +270,29 @@ pub struct UnsubscribeOpts {
 #[async_trait]
 impl AsyncCmd for UnsubscribeOpts {
     async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+        let topic_pattern = self.topic_pattern.as_ref().map(|p| Regex::new(p).unwrap());
+        let subscription_pattern = self.subscription_pattern.as_ref().map(|p| Regex::new(p).unwrap());
         let admin = pulsar_ctx.admin().await?;
         let topics = admin.topics()
             .list(&self.namespace, TopicDomain::Persistent)
             .await?;
         for topic in topics {
+            if let Some(p) = &topic_pattern {
+                if !p.is_match(&topic) {
+                    continue;
+                }
+            }
             println!("Topic {}", topic);
             let stats = admin.topics().stats(&topic, true, true).await?;
             if let Some(subs) = stats.get("subscriptions") {
                 trace!("{}", subs);
                 if let Some(subs_obj) = subs.as_object() {
                     for (name, info) in subs_obj.iter() {
+                        if let Some(p) = &subscription_pattern {
+                            if !p.is_match(&name) {
+                                continue;
+                            }
+                        }
                         println!("Subscription {}: backlog {}", name,
                                  info.get("msgBacklog").unwrap().as_i64().unwrap());
                         if !self.dry_run {
@@ -286,6 +301,57 @@ impl AsyncCmd for UnsubscribeOpts {
                         }
                     }
                 }
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct DeleteTopicsOpts {
+    namespace: String,
+
+    #[arg(long, default_value = "false")]
+    dry_run: bool,
+
+    #[arg(long, default_value = "false")]
+    force: bool,
+
+    #[arg(long)]
+    topic_pattern: Option<String>,
+}
+
+#[async_trait]
+impl AsyncCmd for DeleteTopicsOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+        let topic_pattern = self.topic_pattern.as_ref().map(|p| Regex::new(p).unwrap());
+        let admin = pulsar_ctx.admin().await?;
+        let topics = admin.topics()
+            .list_partitioned(&self.namespace, TopicDomain::Persistent)
+            .await?;
+        for topic in topics {
+            if let Some(p) = &topic_pattern {
+                if !p.is_match(&topic) {
+                    continue;
+                }
+            }
+            println!("Topic {}", topic);
+            if !self.dry_run {
+                admin.topics().delete_partitioned_topic(&topic, self.force, true).await?;
+            }
+        }
+        let topics = admin.topics()
+            .list(&self.namespace, TopicDomain::Persistent)
+            .await?;
+        for topic in topics {
+            if let Some(p) = &topic_pattern {
+                if !p.is_match(&topic) {
+                    continue;
+                }
+            }
+            println!("Topic {}", topic);
+            if !self.dry_run {
+                admin.topics().delete_topic(&topic, self.force, true).await?;
             }
         }
         Ok(())

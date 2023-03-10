@@ -91,6 +91,12 @@ impl<'a> PulsarAdminTopics<'a> {
             .json::<Vec<String>>().await?)
     }
 
+    pub async fn list_partitioned(&self, namespace: &str, domain: TopicDomain) -> Result<Vec<String>, Error> {
+        Ok(self.admin.get(format!("/admin/v2/{}/{}/partitioned", domain.to_string(), namespace).as_str())?
+            .send().await?
+            .json::<Vec<String>>().await?)
+    }
+
     pub async fn lookup(&self, topic: &str) -> Result<LookupResponse, Error> {
         let canonical_topic = topic.replace("://", "/");
         let body = self.admin.get(format!("/lookup/v2/topic/{}", canonical_topic).as_str())?
