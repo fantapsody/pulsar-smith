@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use clap::Parser;
 
 use crate::admin::namespaces::{NamespacePolicies, PersistencePolicies};
+use crate::admin::topics::TopicDomain;
 use crate::cmd::cmd::AsyncCmd;
 use crate::context::PulsarContext;
 use crate::error::Error;
@@ -25,6 +26,7 @@ impl AsyncCmd for NamespacesOpts {
             Command::GetPersistence(opts) => opts,
             Command::SetPersistence(opts) => opts,
             Command::RemovePersistence(opts) => opts,
+            Command::Unsubscribe(opts) => opts,
         };
         cmd.run(pulsar_ctx).await?;
         Ok(())
@@ -42,6 +44,7 @@ pub enum Command {
     GetPersistence(GetPersistenceOpts),
     SetPersistence(SetPersistenceOpts),
     RemovePersistence(RemovePersistenceOpts),
+    Unsubscribe(UnsubscribeOpts),
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -240,6 +243,51 @@ impl AsyncCmd for RemovePersistenceOpts {
             .namespaces()
             .remove_persistence(self.namespace.as_str())
             .await?;
+        Ok(())
+    }
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct UnsubscribeOpts {
+    namespace: String,
+
+    #[arg(long, default_value = "false")]
+    dry_run: bool,
+
+    #[arg(long, default_value = "false")]
+    force: bool,
+
+    #[arg(long)]
+    topic_pattern: Option<String>,
+
+    #[arg(long)]
+    subscription_pattern: Option<String>,
+}
+
+#[async_trait]
+impl AsyncCmd for UnsubscribeOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+        let admin = pulsar_ctx.admin().await?;
+        let topics = admin.topics()
+            .list(&self.namespace, TopicDomain::Persistent)
+            .await?;
+        for topic in topics {
+            println!("Topic {}", topic);
+            let stats = admin.topics().stats(&topic, true, true).await?;
+            if let Some(subs) = stats.get("subscriptions") {
+                trace!("{}", subs);
+                if let Some(subs_obj) = subs.as_object() {
+                    for (name, info) in subs_obj.iter() {
+                        println!("Subscription {}: backlog {}", name,
+                                 info.get("msgBacklog").unwrap().as_i64().unwrap());
+                        if !self.dry_run {
+                            admin.topics().unsubscribe(&topic, &name, self.force).await?;
+                            println!("Unsubscribed {} of {}", name, topic);
+                        }
+                    }
+                }
+            }
+        }
         Ok(())
     }
 }
