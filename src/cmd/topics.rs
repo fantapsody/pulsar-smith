@@ -17,6 +17,7 @@ impl AsyncCmd for TopicsOpts {
     async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
         let cmd: &dyn AsyncCmd = match &self.cmd {
             Command::List(opts) => opts,
+            Command::ListPartitionedTopics(opts) => opts,
             Command::Create(opts) => opts,
             Command::Delete(opts) => opts,
             Command::DeletePartitionedTopic(opts) => opts,
@@ -36,6 +37,7 @@ impl AsyncCmd for TopicsOpts {
 #[derive(Parser, Debug, Clone)]
 pub enum Command {
     List(ListOpts),
+    ListPartitionedTopics(ListPartitionedTopicsOpts),
     Create(CreateTopicOpts),
     Delete(DeleteTopicOpts),
     DeletePartitionedTopic(DeletePartitionedTopicOpts),
@@ -62,6 +64,26 @@ impl AsyncCmd for ListOpts {
         let r = pulsar_ctx.admin().await?
             .topics()
             .list(self.namespace.as_str(), TopicDomain::parse(self.domain.as_ref())?)
+            .await?;
+        println!("{:?}", r);
+        Ok(())
+    }
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct ListPartitionedTopicsOpts {
+    pub namespace: String,
+
+    #[arg(short = 'd', long, default_value = "Persistent")]
+    pub domain: String,
+}
+
+#[async_trait]
+impl AsyncCmd for ListPartitionedTopicsOpts {
+    async fn run(&self, pulsar_ctx: &mut PulsarContext) -> Result<(), Error> {
+        let r = pulsar_ctx.admin().await?
+            .topics()
+            .list_partitioned(self.namespace.as_str(), TopicDomain::parse(self.domain.as_ref())?)
             .await?;
         println!("{:?}", r);
         Ok(())
